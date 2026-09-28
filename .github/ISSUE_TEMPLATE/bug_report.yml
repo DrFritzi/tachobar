@@ -1,0 +1,29 @@
+name: Bug report
+description: Something is wrong or crashes
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did the status line show, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Output of `tachobar doctor`
+      description: Remove anything you consider private (paths, usernames).
+      render: text
+  - type: input
+    id: os
+    attributes:
+      label: OS and terminal
+      placeholder: e.g. Windows 11 + Windows Terminal, macOS 15 + iTerm2
+    validations:
+      required: true
+  - type: input
+    id: cc
+    attributes:
+      label: Claude Code version
+      placeholder: output of `claude --version`
