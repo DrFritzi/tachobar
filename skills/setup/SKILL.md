@@ -18,12 +18,20 @@ setting. Work through these steps and report what you did.
    the command and ask before running it.
    - macOS / Linux:
      `curl --proto '=https' --tlsv1.2 -LsSf https://github.com/DrFritzi/tachobar/releases/latest/download/tachobar-installer.sh | sh`
-   - Windows (PowerShell):
-     `powershell -ExecutionPolicy Bypass -c "irm https://github.com/DrFritzi/tachobar/releases/latest/download/tachobar-installer.ps1 | iex"`
+   - Windows: do **not** use the `irm … | iex` script installer. Microsoft
+     Defender blocks that command pattern. Instead, in PowerShell, download
+     `tachobar-<arch>-pc-windows-msvc.zip` from the latest release
+     (`<arch>` is `aarch64` if `$env:PROCESSOR_ARCHITECTURE` is `ARM64`,
+     otherwise `x86_64`). Check its SHA256 against the `.sha256` file next to
+     it, then unpack it with `Expand-Archive` into
+     `$env:LOCALAPPDATA\Programs\tachobar`. The README's Windows section has
+     the exact commands.
    - Alternative with a Rust toolchain: `cargo install --git https://github.com/DrFritzi/tachobar --locked`
 
-   The installers put `tachobar` in `~/.cargo/bin`. If `tachobar --version`
-   still fails, use the full path to the binary in the next step.
+   The macOS/Linux installer and `cargo install` put `tachobar` in
+   `~/.cargo/bin`; the Windows zip route puts it in
+   `%LOCALAPPDATA%\Programs\tachobar`. If `tachobar --version` still fails,
+   use the full path to the binary in the next step.
 
 3. **Write the status line setting.** Run `tachobar --init` and show the user
    the snippet. It points at the binary's absolute path. If
