@@ -1,0 +1,29 @@
+name: Wrong cost / price
+description: A cost, price or currency amount looks wrong
+labels: [pricing]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please do **not** attach transcripts. They contain your prompts and code.
+        Token counts and model ids are enough.
+  - type: input
+    id: model
+    attributes:
+      label: Model id
+      placeholder: e.g. claude-opus-5-5
+    validations:
+      required: true
+  - type: textarea
+    id: numbers
+    attributes:
+      label: Expected vs. shown
+      description: What tachobar showed, what you expected, and where the expected value comes from (Console, invoice, `/cost`...).
+    validations:
+      required: true
+  - type: textarea
+    id: usage
+    attributes:
+      label: Usage numbers (optional)
+      description: The `usage` object of the affected API response(s), if you have it.
+      render: json

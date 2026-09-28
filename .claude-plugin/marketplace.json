@@ -1,0 +1,16 @@
+{
+  "name": "tachobar",
+  "description": "tachobar: a Claude Code status line with accurate costs in any currency",
+  "owner": {
+    "name": "DrFritzi",
+    "url": "https://github.com/DrFritzi"
+  },
+  "plugins": [
+    {
+      "name": "tachobar",
+      "source": "./",
+      "description": "Status line with accurate session cost (cache tiers, subagents), context usage and burn rate in any currency",
+      "category": "productivity"
+    }
+  ]
+}
