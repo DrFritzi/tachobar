@@ -172,13 +172,27 @@ transcripts.**
    the whole request. If litellm lacks a cache price for a model, tachobar
    uses Anthropic's published multipliers (1.25× input for 5-minute writes,
    2× for 1-hour writes, 0.1× for reads).
-4. **Deduplication.** Claude Code writes one transcript line per content
+4. **Request modifiers**, read from each response's `usage`:
+   - **Fast mode** (`speed: "fast"`): the model's fast-mode input/output
+     prices from Anthropic's [pricing page](https://platform.claude.com/docs/en/about-claude/pricing#fast-mode-pricing)
+     (litellm does not carry them). Cache writes and reads scale with the
+     fast input price, and fast mode has one price across the whole context
+     window.
+   - **US-only inference** (`inference_geo: "us"`): the data residency
+     multiplier (currently 1.1×) on every token category.
+   - **Batch** (`service_tier: "batch"`): 50% off every token category.
+
+   Fast-mode prices and the data residency multiplier are re-read from the
+   pricing page on each daily refresh. The parser is strict: if the page
+   layout changes, the last good values stay in use, and `tachobar refresh`
+   says so.
+5. **Deduplication.** Claude Code writes one transcript line per content
    block (thinking, text, tool call), and each line repeats the same usage.
    Lines are deduplicated by `message.id` + `requestId`, so each API response
    is counted once.
-5. **Caching.** A finished subagent transcript never changes, so its cost is
+6. **Caching.** A finished subagent transcript never changes, so its cost is
    cached by file size and modification time and parsed only once.
-6. **Currency.** USD amounts are converted with the latest ECB reference
+7. **Currency.** USD amounts are converted with the latest ECB reference
    rate from [frankfurter.app](https://frankfurter.app).
 
 **Validation.** On a real session, the formula reproduces Claude Code's own
@@ -188,16 +202,20 @@ transcripts.**
 
 ### Limits
 
-- It is an **estimate at list price**, not your invoice. Discounts, batch
-  pricing, and subscription plans (Pro/Max) are not reflected. On a
+- It is an **estimate at list price**, not your invoice. Negotiated
+  discounts and subscription plans (Pro/Max) are not reflected. On a
   subscription, the number is what the usage *would* cost at API prices.
-- **Fast mode** and other premium speeds carry a surcharge that litellm does
-  not publish. Subagent responses at such speeds are priced at standard
-  rates, and the cost gets a `+` and a warning.
-- A model litellm does not know yet shows `?` for its price. Its subagent
-  calls are left out of the total, and the line says how many.
-- Transcripts from older Claude Code versions have no 5-minute/1-hour split
-  of cache writes. Those writes are priced as 5-minute writes.
+- A trailing **`+`** on the cost means the true cost is higher than shown,
+  and a note in the line says why:
+  - `[N subagent calls unpriced]`: a model litellm does not know yet, fast
+    mode on a model without a published fast price, or a `speed` value
+    tachobar does not know. These calls are left out of the total.
+  - `[N subagent calls estimated]`: priced, but only as a lower bound or
+    list-price estimate. This covers cache writes logged without the
+    5-minute/1-hour split (priced at the cheaper 5-minute rate), Priority
+    Tier (billed through a capacity commitment, so list price is only an
+    estimate), and unknown `inference_geo` / `service_tier` values.
+- A model litellm does not know shows `?` for its price.
 - Exchange rates are ECB daily reference rates, not your card's rate.
 - The tokens/s figure counts all tokens processed (input, cache reads and
   writes, output) by the main conversation and subagents.
@@ -205,10 +223,11 @@ transcripts.**
 ## Data and privacy
 
 tachobar reads transcripts only for token counts and model ids. Its only
-network traffic is one daily HTTPS GET to GitHub (litellm pricing) and one to
-frankfurter.app (exchange rates), made by a background process that never
-delays rendering. Both data sets ship bundled in the binary, so it works
-offline from the first run. There is no telemetry. See [SECURITY.md](SECURITY.md).
+network traffic is a daily set of HTTPS GETs: GitHub (litellm pricing),
+platform.claude.com (Anthropic's pricing page, for fast-mode and data residency
+prices) and frankfurter.app (exchange rates). A background process makes them
+and never delays rendering. All data ships bundled in the binary, so tachobar
+works offline from the first run. There is no telemetry. See [SECURITY.md](SECURITY.md).
 
 ## License
 

@@ -39,8 +39,10 @@ Before a release, refresh the offline snapshots:
 cargo run -q -- snapshot data/
 ```
 
-This rewrites `data/pricing-snapshot.json` (Claude entries from litellm) and
-`data/fx-snapshot.json` (ECB rates with USD as the base).
+This rewrites `data/pricing-snapshot.json` (Claude entries from litellm, plus
+fast-mode prices and the data residency multiplier from Anthropic's pricing
+page) and `data/fx-snapshot.json` (ECB rates with USD as the base). It fails
+instead of writing partial data if any source cannot be read or parsed.
 
 ## Fixtures
 
@@ -52,4 +54,26 @@ real transcripts, which contain your prompts and file contents.
 1. Update `version` in `Cargo.toml` and `.claude-plugin/plugin.json`, and
    `CHANGELOG.md`.
 2. Refresh the bundled data (above).
-3. Tag `vX.Y.Z` and push the tag. cargo-dist builds and publishes the release.
+3. Tag `vX.Y.Z` and push the tag. cargo-dist builds the binaries and
+   installers, attests their build provenance, creates the GitHub release,
+   and then publishes to crates.io.
+
+### One-time release setup (maintainer)
+
+No long-lived secrets are stored in the repository:
+
+- **crates.io** uses [Trusted Publishing](https://crates.io/docs/trusted-publishing).
+  crates.io only allows it for a crate that already exists, so:
+  1. Publish the first version by hand: `cargo publish` with a short-lived,
+     `publish-new`-scoped API token. Revoke the token afterwards.
+  2. On crates.io, open the crate's *Settings -> Trusted Publishing* and add
+     repository `DrFritzi/tachobar`, workflow `release.yml`, environment
+     `crates-io`.
+  3. In the GitHub repository settings, create the `crates-io` environment
+     and limit it to tags matching `v*`. Adding yourself as a required
+     reviewer is optional.
+- **GitHub releases** use the workflow's own `GITHUB_TOKEN`. Build provenance
+  uses GitHub's OIDC-backed attestations.
+- Actions are pinned to full commit SHAs. Dependabot opens PRs to update them.
+  To re-pin the release workflow, edit `[dist.github-action-commits]` in
+  `dist-workspace.toml` and run `dist generate`. Do not edit `release.yml` by hand.

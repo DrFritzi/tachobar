@@ -151,11 +151,8 @@ pub fn build_report(input: &Input, env: &Env) -> Report {
     if sub.unpriced > 0 {
         notes.push(format!("{} subagent calls unpriced", sub.unpriced));
     }
-    if sub.premium > 0 {
-        notes.push(format!(
-            "{} fast-mode subagent calls at standard price",
-            sub.premium
-        ));
+    if sub.estimated > 0 {
+        notes.push(format!("{} subagent calls estimated", sub.estimated));
     }
 
     let burn = match (
@@ -188,7 +185,7 @@ pub fn build_report(input: &Input, env: &Env) -> Report {
             .or_else(|| env.effort_fallback.clone()),
         context: context_tokens.map(|t| (t, context_size)),
         cost_usd,
-        cost_partial: sub.unpriced > 0 || sub.premium > 0,
+        cost_partial: sub.unpriced > 0 || sub.estimated > 0,
         burn,
         fx_rate: if wants_fx { fx_rate } else { Some(1.0) },
         notes,

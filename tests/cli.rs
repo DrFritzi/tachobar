@@ -87,11 +87,11 @@ fn stdin(model: &str, cost: f64) -> String {
 fn renders_full_line_in_eur_with_subagents() {
     let sb = Sandbox::new("currency = \"EUR\"\n");
     let out = sb.run(&stdin("claude-opus-5-5", 1.5), &[]);
-    // Main 1.5 USD + subagents 0.370365 USD = 1.870365 USD -> 0.935 EUR.
+    // Main 1.5 USD + subagents 0.512045 USD (incl. fast mode + US-only) = 2.012045 USD -> 1.006 EUR.
     // Prices: 4/20 USD per 1M -> 2/10 EUR.
     assert_eq!(
         out,
-        "myproject Opus 5.5 high €2/€10/M 142k/1M ctx (14%) €0.94+ [1 subagent calls unpriced]\n"
+        "myproject Opus 5.5 high €2/€10/M 142k/1M ctx (14%) €1.01+ [1 subagent calls unpriced] [1 subagent calls estimated]\n"
     );
     assert!(!out.contains('\r'));
 }

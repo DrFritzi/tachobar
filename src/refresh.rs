@@ -12,7 +12,7 @@ use std::time::Duration;
 
 use crate::currency::{self, FxFile};
 use crate::paths;
-use crate::pricing::{self, PriceFile};
+use crate::pricing::{self, PriceFile, PriceTable};
 
 const MAX_AGE_SECS: u64 = 24 * 3600;
 const RETRY_SECS: u64 = 3600;
@@ -47,13 +47,57 @@ fn get(agent: &ureq::Agent, url: &str) -> Result<String, String> {
         .map_err(|e| format!("{url}: {e}"))
 }
 
-pub fn fetch_pricing(agent: &ureq::Agent) -> Result<PriceFile, String> {
+/// litellm prices plus the modifiers from Anthropic's pricing page. If the
+/// page cannot be read or fails validation, the modifiers already in use
+/// (last download or bundled snapshot) are kept and the second value says why.
+pub fn fetch_pricing(agent: &ureq::Agent) -> Result<(PriceFile, Option<String>), String> {
     let body = get(agent, pricing::LITELLM_URL)?;
     let models = pricing::extract_from_litellm(&body)?;
-    Ok(PriceFile {
+    let current = PriceTable::load();
+    let mut file = PriceFile {
         fetched_at: paths::now_secs(),
         models,
-    })
+        fast_mode: current.fast_mode,
+        inference_geo_us_multiplier: current.inference_geo_us_multiplier,
+    };
+    let page = get(agent, pricing::ANTHROPIC_PRICING_URL)
+        .and_then(|md| pricing::parse_anthropic_pricing(&md))
+        .and_then(|m| validate_fast_mode(&file, m));
+    let warning = match page {
+        Ok(m) => {
+            file.fast_mode = m.fast_mode;
+            file.inference_geo_us_multiplier = m.inference_geo_us_multiplier;
+            None
+        }
+        Err(e) => Some(format!(
+            "kept previous fast mode / data residency prices: {e}"
+        )),
+    };
+    Ok((file, warning))
+}
+
+/// A fast mode price must belong to a model litellm knows and cost at least
+/// the standard price, but not absurdly more.
+fn validate_fast_mode(
+    file: &PriceFile,
+    m: pricing::PageModifiers,
+) -> Result<pricing::PageModifiers, String> {
+    for (id, f) in &m.fast_mode {
+        let Some(base) = file.models.get(id) else {
+            continue; // not in litellm yet: kept, used once litellm has the model
+        };
+        let (Some(bi), Some(bo)) = (base.input_cost_per_token, base.output_cost_per_token) else {
+            continue;
+        };
+        let ri = f.input_cost_per_token / bi;
+        let ro = f.output_cost_per_token / bo;
+        if !(1.0..=10.0).contains(&ri) || !(1.0..=10.0).contains(&ro) {
+            return Err(format!(
+                "implausible fast mode price for {id} ({ri:.2}x / {ro:.2}x)"
+            ));
+        }
+    }
+    Ok(m)
 }
 
 pub fn fetch_fx(agent: &ureq::Agent) -> Result<FxFile, String> {
@@ -65,10 +109,17 @@ pub fn fetch_fx(agent: &ureq::Agent) -> Result<FxFile, String> {
 pub fn run(need_fx: bool) -> Vec<Result<String, String>> {
     let agent = agent();
     let mut out = Vec::new();
-    out.push(fetch_pricing(&agent).and_then(|f| {
-        let n = f.models.len();
+    out.push(fetch_pricing(&agent).and_then(|(f, warning)| {
+        let msg = format!(
+            "pricing: {} Claude models from litellm, fast mode prices for {} models",
+            f.models.len(),
+            f.fast_mode.len()
+        );
         write_json(&pricing::cache_path(), &f)?;
-        Ok(format!("pricing: {n} Claude models from litellm"))
+        Ok(match warning {
+            Some(w) => format!("{msg} ({w})"),
+            None => msg,
+        })
     }));
     if need_fx {
         out.push(fetch_fx(&agent).and_then(|f| {
@@ -83,7 +134,10 @@ pub fn run(need_fx: bool) -> Vec<Result<String, String>> {
 /// Write fresh snapshots for the bundled data (maintainers, before a release).
 pub fn write_snapshots(dir: &std::path::Path) -> Result<(), String> {
     let agent = agent();
-    let p = fetch_pricing(&agent)?;
+    let (p, warning) = fetch_pricing(&agent)?;
+    if let Some(w) = warning {
+        return Err(w);
+    }
     let fx = fetch_fx(&agent)?;
     write_json_pretty(&dir.join("pricing-snapshot.json"), &p)?;
     write_json_pretty(&dir.join("fx-snapshot.json"), &fx)?;

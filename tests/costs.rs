@@ -8,12 +8,14 @@
 //!   Sonnet 4.5  in 3e-6, out 15e-6, 5m write 3.75e-6, 1h write 6e-6, read 3e-7,
 //!               web search 0.01/request;
 //!               >200k prompt: in 6e-6, out 22.5e-6, 5m write 7.5e-6, read 6e-7
-//!   Opus 5.5    in 4e-6, out 20e-6, 1h write 8e-6, read 2e-7
+//!   Opus 5.5    in 4e-6, out 20e-6, 1h write 8e-6, read 2e-7;
+//!               fast mode in 8e-6, out 40e-6 (cache prices scale with input);
+//!               US-only inference (inference_geo "us") 1.1x on all tokens
 
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
-use tachobar::pricing::{PriceFile, PriceTable, Source, Usage};
+use tachobar::pricing::{PriceFile, PriceTable, Priced, Source, Usage};
 use tachobar::transcript::{self, file_cost, session_usage};
 
 fn fixtures() -> PathBuf {
@@ -63,6 +65,20 @@ fn sonnet_subagent_uses_long_context_tier_and_web_search() {
     let c = file_cost(&subagent("agent-b.jsonl"), &prices());
     close(c.usd, 0.1303 + 0.231);
     assert_eq!(c.unpriced, 0);
+    // The legacy line's TTL is unknown, so the 5m price is only a lower bound.
+    assert_eq!(c.estimated, 1);
+}
+
+#[test]
+fn fast_mode_with_us_inference() {
+    // One response on 2 lines, speed "fast", inference_geo "us":
+    //   fast rates: in 8e-6, out 40e-6, 1h write 2x8e-6 = 16e-6, read 0.05x8e-6 = 0.4e-6
+    //   (100*8e-6 + 1000*40e-6 + 20000*0.4e-6 + 5000*16e-6) * 1.1
+    //   = (0.0008 + 0.04 + 0.008 + 0.08) * 1.1 = 0.14168
+    let c = file_cost(&subagent("agent-d.jsonl"), &prices());
+    close(c.usd, 0.14168);
+    assert_eq!(c.unpriced, 0);
+    assert_eq!(c.estimated, 0);
 }
 
 #[test]
@@ -82,7 +98,6 @@ fn main_transcript_matches_claude_codes_own_cost() {
     // costUSD = 0.2378552: 8*4e-6 + 682*20e-6 + 231276*2e-7 + 22241*8e-6.
     // Pricing the 1h writes at the 5m rate (1.25x input) would give 0.1711.
     let p = prices();
-    let (_, opus) = p.lookup("claude-opus-5-5").unwrap();
     let u = Usage {
         input: 8,
         output: 682,
@@ -90,7 +105,9 @@ fn main_transcript_matches_claude_codes_own_cost() {
         cache_write_1h: 22_241,
         ..Default::default()
     };
-    close(opus.cost(&u).unwrap(), 0.2378552);
+    let priced = p.price("claude-opus-5-5", &u).unwrap();
+    assert!(matches!(priced, Priced::Exact(_)));
+    close(priced.usd(), 0.2378552);
     let c = file_cost(&fixtures().join("session/sess-1.jsonl"), &p);
     close(c.usd, 0.2378552);
 }
@@ -101,9 +118,10 @@ fn session_totals_and_cache_reuse() {
     let p = prices();
     let main = fixtures().join("session/sess-1.jsonl");
     let u = session_usage(&main, "sess-1-test", &p);
-    assert_eq!(u.subagent_files, 3);
-    close(u.subagents.usd, 0.009065 + 0.3613);
+    assert_eq!(u.subagent_files, 4);
+    close(u.subagents.usd, 0.009065 + 0.3613 + 0.14168);
     assert_eq!(u.subagents.unpriced, 1);
+    assert_eq!(u.subagents.estimated, 1);
     assert_eq!(u.main_tokens, 8 + 682 + 231_276 + 22_241);
     // Second call is served from the cache and must agree.
     let again = session_usage(&main, "sess-1-test", &p);

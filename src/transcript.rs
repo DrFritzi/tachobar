@@ -14,7 +14,7 @@ use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
 use crate::paths;
-use crate::pricing::{PriceTable, Usage};
+use crate::pricing::{Geo, PriceTable, Priced, Speed, Tier, Usage};
 
 #[derive(Deserialize)]
 struct Line {
@@ -46,6 +46,8 @@ struct RawUsage {
     cache_creation: Option<CacheCreation>,
     server_tool_use: Option<ServerToolUse>,
     speed: Option<String>,
+    inference_geo: Option<String>,
+    service_tier: Option<String>,
 }
 
 #[derive(Deserialize, Default)]
@@ -64,13 +66,40 @@ struct ServerToolUse {
 
 impl RawUsage {
     fn to_usage(&self) -> Usage {
-        // Newer transcripts split cache writes by TTL. Older ones only have
-        // the total; those predate 1h caching by default, so treat as 5m.
-        let (w5, w1h) = match &self.cache_creation {
-            Some(cc) if cc.ephemeral_5m_input_tokens + cc.ephemeral_1h_input_tokens > 0 => {
-                (cc.ephemeral_5m_input_tokens, cc.ephemeral_1h_input_tokens)
-            }
-            _ => (self.cache_creation_input_tokens, 0),
+        // The API splits cache writes by TTL in `cache_creation`. Without that
+        // split the TTL is unknown: count them as 5-minute writes (the cheaper
+        // rate, so a lower bound) and flag the result as an estimate.
+        let split = self
+            .cache_creation
+            .as_ref()
+            .filter(|cc| cc.ephemeral_5m_input_tokens + cc.ephemeral_1h_input_tokens > 0);
+        let (w5, w1h, ttl_unknown) = match split {
+            Some(cc) => (
+                cc.ephemeral_5m_input_tokens,
+                cc.ephemeral_1h_input_tokens,
+                false,
+            ),
+            None => (
+                self.cache_creation_input_tokens,
+                0,
+                self.cache_creation_input_tokens > 0,
+            ),
+        };
+        let speed = match self.speed.as_deref() {
+            None | Some("standard") => Speed::Standard,
+            Some("fast") => Speed::Fast,
+            Some(_) => Speed::Unknown,
+        };
+        let geo = match self.inference_geo.as_deref() {
+            None | Some("global" | "not_available" | "") => Geo::Global,
+            Some("us") => Geo::Us,
+            Some(_) => Geo::Unknown,
+        };
+        let tier = match self.service_tier.as_deref() {
+            None | Some("standard") => Tier::Standard,
+            Some("batch") => Tier::Batch,
+            Some("priority") => Tier::Priority,
+            Some(_) => Tier::Unknown,
         };
         Usage {
             input: self.input_tokens,
@@ -82,6 +111,10 @@ impl RawUsage {
                 .server_tool_use
                 .as_ref()
                 .map_or(0, |s| s.web_search_requests),
+            cache_ttl_unknown: ttl_unknown,
+            speed,
+            geo,
+            tier,
         }
     }
 }
@@ -91,9 +124,6 @@ impl RawUsage {
 pub struct Entry {
     pub model: String,
     pub usage: Usage,
-    /// `usage.speed` other than `standard` (e.g. fast mode), which is billed
-    /// at a premium that litellm does not publish.
-    pub premium_speed: bool,
     pub sidechain: bool,
 }
 
@@ -114,7 +144,6 @@ fn parse_line(line: &str) -> Option<(Option<String>, Entry)> {
     let entry = Entry {
         model: msg.model.unwrap_or_default(),
         usage: raw.to_usage(),
-        premium_speed: raw.speed.as_deref().is_some_and(|s| s != "standard"),
         sidechain: l.is_sidechain,
     };
     Some((key, entry))
@@ -149,9 +178,10 @@ pub struct CostSum {
     pub tokens: u64,
     /// Responses that could not be priced (unknown model, missing price).
     pub unpriced: u32,
-    /// Responses billed at a premium speed we cannot price exactly.
+    /// Responses priced as a lower bound or list-price estimate (unknown
+    /// cache TTL, Priority Tier...).
     #[serde(default)]
-    pub premium: u32,
+    pub estimated: u32,
 }
 
 impl CostSum {
@@ -159,11 +189,11 @@ impl CostSum {
         self.usd += other.usd;
         self.tokens += other.tokens;
         self.unpriced += other.unpriced;
-        self.premium += other.premium;
+        self.estimated += other.estimated;
     }
 }
 
-/// Price every entry with its own model's rates.
+/// Price every entry with its own model's rates and modifiers.
 pub fn price_entries(entries: &[Entry], prices: &PriceTable) -> CostSum {
     let mut sum = CostSum::default();
     for e in entries {
@@ -171,12 +201,13 @@ pub fn price_entries(entries: &[Entry], prices: &PriceTable) -> CostSum {
             continue; // e.g. `<synthetic>` error messages
         }
         sum.tokens += e.usage.total_tokens();
-        match prices.lookup(&e.model).and_then(|(_, p)| p.cost(&e.usage)) {
-            Some(usd) => sum.usd += usd,
+        match prices.price(&e.model, &e.usage) {
+            Some(Priced::Exact(usd)) => sum.usd += usd,
+            Some(Priced::Estimate(usd)) => {
+                sum.usd += usd;
+                sum.estimated += 1;
+            }
             None => sum.unpriced += 1,
-        }
-        if e.premium_speed {
-            sum.premium += 1;
         }
     }
     sum
@@ -376,8 +407,10 @@ mod tests {
         assert_eq!(e.len(), 2);
         assert_eq!(e[0].usage.cache_write_1h, 50);
         assert_eq!(e[0].usage.cache_write_5m, 0);
-        // No TTL breakdown: counted as 5m writes.
+        // No TTL breakdown: counted as 5m writes and flagged.
         assert_eq!(e[1].usage.cache_write_5m, 7);
+        assert!(e[1].usage.cache_ttl_unknown);
+        assert!(!e[0].usage.cache_ttl_unknown);
     }
 
     #[test]
