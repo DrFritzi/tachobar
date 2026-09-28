@@ -60,7 +60,7 @@ fn base_dir(os: Os, kind: Kind, get: &dyn Fn(&str) -> Option<PathBuf>) -> Option
             };
             // XDG says relative values must be ignored.
             get(var)
-                .filter(|p| p.is_absolute())
+                .filter(|p| p.has_root())
                 .or_else(|| get("HOME").map(|h| h.join(rel)))
         }
     }
