@@ -55,23 +55,11 @@ real transcripts, which contain your prompts and file contents.
    `CHANGELOG.md`.
 2. Refresh the bundled data (above).
 3. Tag `vX.Y.Z` and push the tag. cargo-dist builds the binaries and
-   installers, attests their build provenance, creates the GitHub release,
-   and then publishes to crates.io.
+   installers, attests their build provenance, and creates the GitHub release.
 
-### One-time release setup (maintainer)
+tachobar is not published to crates.io (`publish = false` in `Cargo.toml`).
+Releases need no setup and no stored secrets:
 
-No long-lived secrets are stored in the repository:
-
-- **crates.io** uses [Trusted Publishing](https://crates.io/docs/trusted-publishing).
-  crates.io only allows it for a crate that already exists, so:
-  1. Publish the first version by hand: `cargo publish` with a short-lived,
-     `publish-new`-scoped API token. Revoke the token afterwards.
-  2. On crates.io, open the crate's *Settings -> Trusted Publishing* and add
-     repository `DrFritzi/tachobar`, workflow `release.yml`, environment
-     `crates-io`.
-  3. In the GitHub repository settings, create the `crates-io` environment
-     and limit it to tags matching `v*`. Adding yourself as a required
-     reviewer is optional.
 - **GitHub releases** use the workflow's own `GITHUB_TOKEN`. Build provenance
   uses GitHub's OIDC-backed attestations.
 - Actions are pinned to full commit SHAs. Dependabot opens PRs to update them.

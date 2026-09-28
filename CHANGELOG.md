@@ -33,6 +33,5 @@ All notable changes to this project are documented here. The format follows
   a plugin marketplace.
 - Prebuilt binaries for Windows, macOS and Linux (x64 and arm64) via cargo-dist,
   with GitHub build provenance attestations.
-- crates.io publishing through Trusted Publishing (OIDC), with no stored API
-  token. All workflow actions are pinned to commit SHAs and kept current by
-  Dependabot.
+- All workflow actions are pinned to commit SHAs and kept current by
+  Dependabot. Releases need no stored secrets.

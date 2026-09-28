@@ -19,9 +19,6 @@ that a download was built by this repository's release workflow:
 gh attestation verify tachobar-x86_64-unknown-linux-musl.tar.xz --repo DrFritzi/tachobar
 ```
 
-The crate on crates.io is published by the same workflow via Trusted
-Publishing (OIDC). No long-lived registry token exists.
-
 ## What tachobar touches
 
 - **Reads:** the JSON Claude Code sends on stdin, the session transcript and

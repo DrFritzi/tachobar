@@ -9,6 +9,8 @@ license = "MIT"
 repository = "https://github.com/DrFritzi/tachobar"
 homepage = "https://github.com/DrFritzi/tachobar"
 readme = "README.md"
+# Distributed as prebuilt binaries via GitHub releases, not crates.io.
+publish = false
 keywords = ["claude", "claude-code", "statusline", "cost", "cli"]
 categories = ["command-line-utilities", "development-tools"]
 include = ["src/**/*", "data/**/*", "Cargo.toml", "README.md", "LICENSE", "CHANGELOG.md"]
@@ -32,3 +34,7 @@ opt-level = 3
 # The profile that 'dist' will build with
 [profile.dist]
 inherits = "release"
+
+# Build release artifacts even though the crate is not published to crates.io
+[package.metadata.dist]
+dist = true

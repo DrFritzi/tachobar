@@ -22,8 +22,6 @@ targets = [
 install-path = "CARGO_HOME"
 # Whether to install an updater program
 install-updater = false
-# Publish to crates.io after the GitHub release is created (needs CARGO_REGISTRY_TOKEN)
-publish-jobs = ["./publish-crates"]
 # Signed build provenance for every release artifact (verify with `gh attestation verify`)
 github-attestations = true
 
