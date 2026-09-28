@@ -56,10 +56,32 @@ tachobar --init --write
 
 **Windows (PowerShell)**
 
+Download the release zip, check it and unpack it. No script is executed, and
+nothing but `tachobar.exe` is installed:
+
 ```powershell
-powershell -ExecutionPolicy Bypass -c "irm https://github.com/DrFritzi/tachobar/releases/latest/download/tachobar-installer.ps1 | iex"
-tachobar --init --write
+$arch = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'aarch64' } else { 'x86_64' }
+$name = "tachobar-$arch-pc-windows-msvc.zip"
+$url  = "https://github.com/DrFritzi/tachobar/releases/latest/download/$name"
+$zip  = "$env:TEMP\$name"
+$dir  = "$env:LOCALAPPDATA\Programs\tachobar"
+Invoke-WebRequest $url -OutFile $zip -UseBasicParsing
+# Optional: compare against the published checksum
+Invoke-WebRequest "$url.sha256" -OutFile "$zip.sha256" -UseBasicParsing
+$want = (Get-Content "$zip.sha256" -Raw).Split(' ')[0]
+if ((Get-FileHash $zip -Algorithm SHA256).Hash -ne $want) { throw "checksum mismatch" }
+Expand-Archive $zip -DestinationPath $dir -Force
+& "$dir\tachobar.exe" --init --write
 ```
+
+`--init --write` points Claude Code at the full path of `tachobar.exe`, so
+it doesn't need to be on your `PATH`. To run `tachobar` by name in a
+terminal, add `%LOCALAPPDATA%\Programs\tachobar` to your `PATH`.
+
+There is also a script installer (`tachobar-installer.ps1` on the release
+page). Microsoft Defender blocks the usual one-line form
+(`irm … | iex` with `-ExecutionPolicy Bypass`) as a suspicious command
+pattern, whatever the script contains, so the zip is the recommended route.
 
 **From source** (any platform, needs a Rust toolchain)
 

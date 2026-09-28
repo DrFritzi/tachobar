@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Windows install docs: download and unpack the release zip instead of the
+  `irm … | iex` script one-liner, which Microsoft Defender blocks as a
+  suspicious command pattern.
+
 ## [0.1.0] - 2026-09-28
 
 ### Added
