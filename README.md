@@ -59,10 +59,10 @@ powershell -ExecutionPolicy Bypass -c "irm https://github.com/DrFritzi/tachobar/
 tachobar --init --write
 ```
 
-**With Cargo** (any platform)
+**From source** (any platform, needs a Rust toolchain)
 
 ```sh
-cargo install tachobar --locked
+cargo install --git https://github.com/DrFritzi/tachobar --locked
 tachobar --init --write
 ```
 

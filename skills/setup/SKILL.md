@@ -20,7 +20,7 @@ setting. Work through these steps and report what you did.
      `curl --proto '=https' --tlsv1.2 -LsSf https://github.com/DrFritzi/tachobar/releases/latest/download/tachobar-installer.sh | sh`
    - Windows (PowerShell):
      `powershell -ExecutionPolicy Bypass -c "irm https://github.com/DrFritzi/tachobar/releases/latest/download/tachobar-installer.ps1 | iex"`
-   - Alternative with a Rust toolchain: `cargo install tachobar --locked`
+   - Alternative with a Rust toolchain: `cargo install --git https://github.com/DrFritzi/tachobar --locked`
 
    The installers put `tachobar` in `~/.cargo/bin`. If `tachobar --version`
    still fails, use the full path to the binary in the next step.
