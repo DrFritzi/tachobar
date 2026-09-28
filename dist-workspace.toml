@@ -28,6 +28,11 @@ dispatch-releases = true
 # Signed build provenance for every release artifact (verify with `gh attestation verify`)
 github-attestations = true
 
+# Build Windows arm64 on a Windows runner (MSVC + LLVM) instead of cross-compiling
+# from Linux with cargo-xwin, which cannot build ring's C code for this target
+[dist.github-custom-runners]
+aarch64-pc-windows-msvc = "windows-2022"
+
 # Pin third-party actions in the generated release workflow to full commit SHAs
 [dist.github-action-commits]
 "actions/checkout" = "d23441a48e516b6c34aea4fa41551a30e30af803" # v6
