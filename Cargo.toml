@@ -17,7 +17,6 @@ serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["float_roundtrip"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 webpki-roots = "1"
-toml = { version = "1", default-features = false, features = ["std", "serde", "parse"] }
 
 [profile.release]
 lto = "thin"
