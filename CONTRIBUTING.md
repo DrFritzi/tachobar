@@ -54,8 +54,13 @@ real transcripts, which contain your prompts and file contents.
 1. Update `version` in `Cargo.toml` and `.claude-plugin/plugin.json`, and
    `CHANGELOG.md`.
 2. Refresh the bundled data (above).
-3. Tag `vX.Y.Z` and push the tag. cargo-dist builds the binaries and
-   installers, attests their build provenance, and creates the GitHub release.
+3. Run the **Release** workflow on `main` with the tag `vX.Y.Z`, either with
+   *Actions -> Release -> Run workflow*, or with
+   `gh workflow run release.yml --ref main -f tag=vX.Y.Z`. cargo-dist builds
+   the binaries and installers, attests their build provenance, and creates
+   the tag and the GitHub release on that `main` commit. The default tag
+   `dry-run` builds everything without publishing. Do not push the tag
+   yourself: the workflow creates it.
 
 tachobar is not published to crates.io (`publish = false` in `Cargo.toml`).
 Releases need no setup and no stored secrets:

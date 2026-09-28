@@ -22,6 +22,9 @@ targets = [
 install-path = "CARGO_HOME"
 # Whether to install an updater program
 install-updater = false
+# Release by running the Release workflow with a tag input; the workflow
+# creates the tag and the GitHub release itself
+dispatch-releases = true
 # Signed build provenance for every release artifact (verify with `gh attestation verify`)
 github-attestations = true
 
