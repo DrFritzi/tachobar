@@ -22,6 +22,8 @@ targets = [
 install-path = "CARGO_HOME"
 # Whether to install an updater program
 install-updater = false
+# Ship the third-party licence notices in every archive
+include = ["THIRD-PARTY-LICENSES.md"]
 # Release by running the Release workflow with a tag input; the workflow
 # creates the tag and the GitHub release itself
 dispatch-releases = true

@@ -62,6 +62,11 @@ real transcripts, which contain your prompts and file contents.
    `dry-run` builds everything without publishing. Do not push the tag
    yourself: the workflow creates it.
 
+After changing dependencies, regenerate the licence notices with
+`cargo install cargo-about --locked --features cli` and
+`cargo about generate about.hbs -o THIRD-PARTY-LICENSES.md`; CI fails if the
+file is stale.
+
 tachobar is not published to crates.io (`publish = false` in `Cargo.toml`).
 Releases need no setup and no stored secrets:
 
