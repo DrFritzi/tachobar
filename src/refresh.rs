@@ -6,90 +6,26 @@
 //! offline machine does not spawn a process on every render.
 
 use std::fs;
-use std::io::Read;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 
 use crate::currency::{self, FxFile};
+use crate::http;
 use crate::paths;
 use crate::pricing::{self, PriceFile, PriceTable};
 
 const MAX_AGE_SECS: u64 = 24 * 3600;
 const RETRY_SECS: u64 = 3600;
-const TIMEOUT_SECS: &str = "20";
-const MAX_BODY: u64 = 64 * 1024 * 1024;
 
 fn attempt_marker() -> PathBuf {
     paths::cache_dir().join("refresh-attempt")
-}
-
-/// Downloads use the system's `curl` (shipped with Windows 10+ and macOS, and
-/// on nearly every Linux distribution). That keeps a TLS stack out of the
-/// binary and uses the system's certificates and proxy settings.
-fn curl() -> PathBuf {
-    if cfg!(windows) {
-        // The copy that ships with the OS, not whatever comes first on PATH.
-        let root = std::env::var_os("SystemRoot").unwrap_or_else(|| r"C:\Windows".into());
-        PathBuf::from(root).join("System32").join("curl.exe")
-    } else {
-        PathBuf::from("curl")
-    }
-}
-
-/// First line of `curl --version`, or `None` if curl is not available.
-pub fn curl_version() -> Option<String> {
-    let out = Command::new(curl()).arg("--version").output().ok()?;
-    let text = String::from_utf8_lossy(&out.stdout);
-    // "curl 8.5.0 (x86_64-pc-linux-gnu) libcurl/..." -> "curl 8.5.0"
-    let name: Vec<_> = text.split_whitespace().take(2).collect();
-    out.status.success().then(|| name.join(" "))
-}
-
-/// HTTPS GET, following redirects, with a time and size limit.
-fn get(url: &str) -> Result<String, String> {
-    let mut child = Command::new(curl())
-        .args(["--silent", "--show-error", "--fail", "--location"])
-        .args(["--proto", "=https", "--proto-redir", "=https", "--tlsv1.2"])
-        .args(["--max-time", TIMEOUT_SECS])
-        .args([
-            "--user-agent",
-            concat!("tachobar/", env!("CARGO_PKG_VERSION")),
-        ])
-        .arg(url)
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|e| format!("cannot run curl ({e}); install curl to refresh prices and rates"))?;
-    let mut body = Vec::new();
-    let read = child
-        .stdout
-        .take()
-        .map(|out| out.take(MAX_BODY + 1).read_to_end(&mut body));
-    if body.len() as u64 > MAX_BODY {
-        let _ = child.kill();
-        let _ = child.wait();
-        return Err(format!("{url}: response is too large"));
-    }
-    let status = child.wait().map_err(|e| format!("{url}: {e}"))?;
-    if !status.success() {
-        let mut err = String::new();
-        if let Some(mut e) = child.stderr.take() {
-            let _ = e.read_to_string(&mut err);
-        }
-        return Err(format!("{url}: {}", err.trim()));
-    }
-    if let Some(Err(e)) = read {
-        return Err(format!("{url}: {e}"));
-    }
-    String::from_utf8(body).map_err(|_| format!("{url}: response is not UTF-8"))
 }
 
 /// litellm prices plus the modifiers from Anthropic's pricing page. If the
 /// page cannot be read or fails validation, the modifiers already in use
 /// (last download or bundled snapshot) are kept and the second value says why.
 pub fn fetch_pricing() -> Result<(PriceFile, Option<String>), String> {
-    let body = get(pricing::LITELLM_URL)?;
+    let body = http::get(pricing::LITELLM_URL)?;
     let models = pricing::extract_from_litellm(&body)?;
     let current = PriceTable::load();
     let mut file = PriceFile {
@@ -98,7 +34,7 @@ pub fn fetch_pricing() -> Result<(PriceFile, Option<String>), String> {
         fast_mode: current.fast_mode,
         inference_geo_us_multiplier: current.inference_geo_us_multiplier,
     };
-    let page = get(pricing::ANTHROPIC_PRICING_URL)
+    let page = http::get(pricing::ANTHROPIC_PRICING_URL)
         .and_then(|md| pricing::parse_anthropic_pricing(&md))
         .and_then(|m| validate_fast_mode(&file, m));
     let warning = match page {
@@ -139,7 +75,7 @@ fn validate_fast_mode(
 }
 
 pub fn fetch_fx() -> Result<FxFile, String> {
-    let body = get(currency::FRANKFURTER_URL)?;
+    let body = http::get(currency::FRANKFURTER_URL)?;
     currency::parse_frankfurter(&body, paths::now_secs())
 }
 

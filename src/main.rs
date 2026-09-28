@@ -2,7 +2,7 @@ use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use tachobar::{config, currency, paths, pricing, refresh, setup, Env};
+use tachobar::{config, currency, http, paths, pricing, refresh, setup, Env};
 
 const HELP: &str = "\
 tachobar - Claude Code status line with accurate costs in any currency
@@ -200,11 +200,9 @@ fn doctor() -> ExitCode {
             cfg.currency
         ),
     }
-    match refresh::curl_version() {
-        Some(v) => println!("curl:      {v} (used for the daily price and rate refresh)"),
-        None => println!(
-            "curl:      not found; prices and rates will not refresh (bundled data is used)"
-        ),
+    match http::proxy_in_use() {
+        Some(p) => println!("network:   via proxy {p}"),
+        None => println!("network:   direct"),
     }
     if let Some(p) = setup::settings_path() {
         let configured = std::fs::read_to_string(&p)

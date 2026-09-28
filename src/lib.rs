@@ -3,6 +3,7 @@
 pub mod burn;
 pub mod config;
 pub mod currency;
+pub mod http;
 pub mod input;
 pub mod paths;
 pub mod pricing;
