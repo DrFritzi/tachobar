@@ -250,7 +250,10 @@ tachobar reads transcripts only for token counts and model ids. Its only
 network traffic is a daily set of HTTPS GETs: GitHub (litellm pricing),
 platform.claude.com (Anthropic's pricing page, for fast-mode and data residency
 prices) and frankfurter.app (exchange rates). A background process makes them
-and never delays rendering. All data ships bundled in the binary, so tachobar
+with the system's `curl` (already on Windows 10+, macOS and most Linux
+distributions), so tachobar has no TLS stack of its own, and it never delays
+rendering. Without `curl`, tachobar keeps working on the bundled data and the
+line flags it once the data is stale. All data ships bundled in the binary, so tachobar
 works offline from the first run. There is no telemetry. See [SECURITY.md](SECURITY.md).
 
 ## Support

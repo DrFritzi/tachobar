@@ -12,6 +12,7 @@
 //!               fast mode in 8e-6, out 40e-6 (cache prices scale with input);
 //!               US-only inference (inference_geo "us") 1.1x on all tokens
 
+mod common;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
@@ -30,8 +31,8 @@ fn prices() -> PriceTable {
 
 /// All tests in this binary share one scratch cache dir.
 fn isolate() {
-    static DIR: OnceLock<tempfile::TempDir> = OnceLock::new();
-    let d = DIR.get_or_init(|| tempfile::tempdir().unwrap());
+    static DIR: OnceLock<common::TempDir> = OnceLock::new();
+    let d = DIR.get_or_init(common::tempdir);
     std::env::set_var("TACHOBAR_CACHE_DIR", d.path().join("cache"));
     std::env::set_var("TACHOBAR_STATE_DIR", d.path().join("state"));
 }

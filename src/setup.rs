@@ -77,7 +77,7 @@ mod tests {
 
     #[test]
     fn merges_into_existing_settings() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testutil::tempdir();
         let p = dir.path().join("settings.json");
         fs::write(
             &p,
@@ -96,7 +96,7 @@ mod tests {
 
     #[test]
     fn creates_missing_settings() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testutil::tempdir();
         let p = dir.path().join("sub").join("settings.json");
         write_settings(&p, "tachobar").unwrap();
         assert!(fs::read_to_string(&p).unwrap().contains("\"statusLine\""));
@@ -104,7 +104,7 @@ mod tests {
 
     #[test]
     fn refuses_invalid_json() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testutil::tempdir();
         let p = dir.path().join("settings.json");
         fs::write(&p, "{ nope").unwrap();
         assert!(write_settings(&p, "x").is_err());

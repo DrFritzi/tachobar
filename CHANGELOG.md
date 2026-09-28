@@ -8,6 +8,12 @@ All notable changes to this project are documented here. The format follows
 
 ### Changed
 
+- The daily refresh downloads with the system's `curl` instead of a built-in
+  HTTP and TLS client, and the `dirs` crate is replaced by a few lines of
+  code. Runtime dependencies drop from 53 crates to 22 and the binary from
+  3.2 MB to 1.2 MB. `tachobar doctor` shows the curl it found.
+- Bumped `actions/checkout` (v7.0.1), `Swatinem/rust-cache` and
+  `EmbarkStudios/cargo-deny-action`, all still pinned to commit SHAs.
 - Windows install docs: download and unpack the release zip instead of the
   `irm … | iex` script one-liner, which Microsoft Defender blocks as a
   suspicious command pattern.

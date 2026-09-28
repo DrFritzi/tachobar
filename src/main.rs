@@ -200,6 +200,12 @@ fn doctor() -> ExitCode {
             cfg.currency
         ),
     }
+    match refresh::curl_version() {
+        Some(v) => println!("curl:      {v} (used for the daily price and rate refresh)"),
+        None => println!(
+            "curl:      not found; prices and rates will not refresh (bundled data is used)"
+        ),
+    }
     if let Some(p) = setup::settings_path() {
         let configured = std::fs::read_to_string(&p)
             .ok()

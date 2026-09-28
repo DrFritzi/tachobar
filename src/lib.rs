@@ -11,6 +11,10 @@ pub mod render;
 pub mod setup;
 pub mod transcript;
 
+#[cfg(test)]
+#[path = "../tests/common/mod.rs"]
+mod testutil;
+
 use std::path::Path;
 
 use config::{Config, Segment};
