@@ -3,6 +3,8 @@
 A fast, cross-platform status line for [Claude Code](https://code.claude.com)
 that shows **what your session really costs**, in your own currency.
 
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-support-FFDD00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/DrFritzi)
+
 ![tachobar status line](docs/screenshot.png)
 
 ```
@@ -228,6 +230,11 @@ platform.claude.com (Anthropic's pricing page, for fast-mode and data residency
 prices) and frankfurter.app (exchange rates). A background process makes them
 and never delays rendering. All data ships bundled in the binary, so tachobar
 works offline from the first run. There is no telemetry. See [SECURITY.md](SECURITY.md).
+
+## Support
+
+If tachobar saves you money or just a little guesswork, you can
+[buy me a coffee](https://buymeacoffee.com/DrFritzi). ☕
 
 ## License
 
