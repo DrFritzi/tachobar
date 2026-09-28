@@ -34,3 +34,8 @@ github-attestations = true
 "actions/upload-artifact" = "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a" # v7
 "actions/download-artifact" = "3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c" # v8
 "actions/attest" = "1e69f48acb82d1966a394da916b4c1698aa569d6" # v4
+
+# ring's C code cannot be cross-compiled for Windows arm64 by cargo-xwin, so
+# build that target natively.
+[dist.github-custom-runners]
+aarch64-pc-windows-msvc = "windows-2022"
