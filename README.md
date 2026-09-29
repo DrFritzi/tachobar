@@ -7,16 +7,39 @@ that shows **what your session really costs**, in your own currency.
 
 ![tachobar status line](docs/screenshot.png)
 
+## Reading the line
+
 ```
 myproject Opus 5.5 high €3.51/€17.54/M 142k/1M ctx (14%) €11.20 327 tok/s €8.54/h
-│         │        │    │              │                  │      └ burn rate over the last hour
-│         │        │    │              │                  └ session cost incl. subagents
-│         │        │    │              └ context window usage
-│         │        │    └ input/output price per 1M tokens
-│         │        └ reasoning effort
-│         └ model (colored by price tier)
-└ directory
 ```
+
+| Part                 | Meaning                                                                                                                                                                                                  |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `myproject`          | Name of the current directory.                                                                                                                                                                           |
+| `Opus 5.5`           | The model. Its color follows its **output** price: green under $10 per 1M tokens, yellow from $10, orange from $25, red from $50 (adjustable).                                                            |
+| `high`               | Reasoning effort: green `low`, yellow `medium`, orange `high`, red `xhigh`/`max`.                                                                                                                        |
+| `€3.51/€17.54/M`     | List price per **1 million tokens**: input / output, in your currency. Cache reads and writes are priced from these (see below). `?/?/M` means the model is not in the price list yet.                    |
+| `142k/1M ctx (14%)`  | Tokens **currently in the context window** / the window's size, and the share used. Green below 50%, yellow from 50%, orange from 80%, red from 95%. Time to `/compact` when it turns red.                 |
+| `€11.20`             | **Session cost** so far at list price: Claude Code's own total plus all subagents. A trailing `+` means the true cost is higher (see Limits).                                                            |
+| `327 tok/s`          | Burn rate: tokens processed per second over the last hour, all kinds (input, cache, output), main conversation and subagents. Cache reads dominate, so this is throughput, not output speed.             |
+| `€8.54/h`            | Burn rate in money: what the last hour of activity costs per hour. Shown once there is at least a minute of data.                                                                                        |
+| `[…]` in orange      | A warning: unpriced model, stale prices or exchange rates, missing exchange rate, unpriced or estimated subagent calls.                                                                                  |
+
+Colors show up when the terminal supports them; `NO_COLOR` turns them off.
+
+**Colors follow the model and the context**
+
+![Color tiers](docs/colors.png)
+
+**Currencies use their usual symbol, placement and decimals.** Unit prices
+drop trailing zeros (`$4`, not `$4.00`; `39.6 kr`).
+
+![Currencies](docs/currencies.png)
+
+**Nothing is silently guessed.** When something cannot be priced exactly,
+the line says so:
+
+![Warnings](docs/warnings.png)
 
 ## Why tachobar
 
@@ -33,7 +56,10 @@ myproject Opus 5.5 high €3.51/€17.54/M 142k/1M ctx (14%) €11.20 327 tok/s 
 
 ## Install
 
-### As a Claude Code plugin
+Pick one. All of them end with tachobar set as your Claude Code status line
+(it appears on the next prompt, or after restarting Claude Code).
+
+### 1. As a Claude Code plugin (easiest)
 
 ```
 /plugin marketplace add DrFritzi/tachobar
@@ -41,20 +67,18 @@ myproject Opus 5.5 high €3.51/€17.54/M 142k/1M ctx (14%) €11.20 327 tok/s 
 /tachobar:setup EUR
 ```
 
-Plugins cannot set the status line directly, so `/tachobar:setup` installs
-the binary and writes the `statusLine` setting for you. The optional argument
-sets the currency.
+Plugins cannot set the status line themselves, so `/tachobar:setup` downloads
+the binary for your OS, writes the `statusLine` setting and sets the currency
+(the argument is optional). It shows each command and asks before running it.
 
-### Manually
-
-**macOS / Linux**
+### 2. macOS / Linux
 
 ```sh
 curl --proto '=https' --tlsv1.2 -LsSf https://github.com/DrFritzi/tachobar/releases/latest/download/tachobar-installer.sh | sh
 tachobar --init --write
 ```
 
-**Windows (PowerShell)**
+### 3. Windows (PowerShell)
 
 Download the release zip, check it and unpack it. No script is executed, and
 nothing but `tachobar.exe` is installed:
@@ -66,7 +90,6 @@ $url  = "https://github.com/DrFritzi/tachobar/releases/latest/download/$name"
 $zip  = "$env:TEMP\$name"
 $dir  = "$env:LOCALAPPDATA\Programs\tachobar"
 Invoke-WebRequest $url -OutFile $zip -UseBasicParsing
-# Optional: compare against the published checksum
 Invoke-WebRequest "$url.sha256" -OutFile "$zip.sha256" -UseBasicParsing
 $want = (Get-Content "$zip.sha256" -Raw).Split(' ')[0]
 if ((Get-FileHash $zip -Algorithm SHA256).Hash -ne $want) { throw "checksum mismatch" }
@@ -74,28 +97,33 @@ Expand-Archive $zip -DestinationPath $dir -Force
 & "$dir\tachobar.exe" --init --write
 ```
 
-`--init --write` points Claude Code at the full path of `tachobar.exe`, so
-it doesn't need to be on your `PATH`. To run `tachobar` by name in a
-terminal, add `%LOCALAPPDATA%\Programs\tachobar` to your `PATH`.
+`--init --write` points Claude Code at the full path of `tachobar.exe`, so it
+doesn't need to be on your `PATH`. (There is deliberately no `irm … | iex`
+installer: Microsoft Defender blocks that command pattern.)
 
-There is also a script installer (`tachobar-installer.ps1` on the release
-page). Microsoft Defender blocks the usual one-line form
-(`irm … | iex` with `-ExecutionPolicy Bypass`) as a suspicious command
-pattern, whatever the script contains, so the zip is the recommended route.
-
-**From source** (any platform, needs a Rust toolchain)
+### 4. From source (any platform, needs Rust 1.85+)
 
 ```sh
 cargo install --git https://github.com/DrFritzi/tachobar --locked
 tachobar --init --write
 ```
 
-Prebuilt archives for every platform are also on the
-[releases page](https://github.com/DrFritzi/tachobar/releases).
+### Check it worked
 
-`tachobar --init` prints the snippet for `~/.claude/settings.json`.
-`--init --write` adds it for you, keeps every other setting, and saves the
-old file as `settings.json.bak`:
+```sh
+tachobar doctor
+```
+
+prints the version, config location, price and exchange-rate sources and
+their age, and whether `settings.json` points at tachobar. Every release file
+has build provenance you can verify with
+`gh attestation verify <file> --repo DrFritzi/tachobar`, and a `.sha256`.
+
+### What `--init` writes
+
+`tachobar --init` prints the snippet; `--init --write` adds it to
+`~/.claude/settings.json`, keeps every other setting and its formatting, and
+saves the old file as `settings.json.bak`:
 
 ```json
 {
@@ -106,6 +134,14 @@ old file as `settings.json.bak`:
   }
 }
 ```
+
+### Update and uninstall
+
+- **Update:** run the same install command again. tachobar never updates
+  itself.
+- **Uninstall:** delete the binary, remove the `statusLine` entry from
+  `settings.json` (or restore `settings.json.bak`), and delete the config and
+  cache folders that `tachobar doctor` lists.
 
 ## Configuration
 
