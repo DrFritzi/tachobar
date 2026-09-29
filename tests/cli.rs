@@ -167,3 +167,39 @@ fn init_prints_snippet() {
     assert!(text.contains("\"statusLine\""));
     assert!(text.contains("\"type\": \"command\""));
 }
+
+#[test]
+fn raw_model_id_shows_family_name() {
+    let sb = Sandbox::new("segments = [\"model\"]\n");
+    let input = serde_json::json!({
+        "model": { "id": "claude-sonnet-5-5", "display_name": "claude-sonnet-5-5" }
+    })
+    .to_string();
+    assert!(sb.run(&input, &[]).starts_with("Sonnet "));
+}
+
+#[test]
+fn never_hides_values_behind_ellipsis() {
+    let sb = Sandbox::new("");
+    let long_dir = format!("/work/{}", "d".repeat(150));
+    let long_model = format!("acme-{}", "x".repeat(150));
+    let input = serde_json::json!({
+        "session_id": "e2e-session",
+        "transcript_path": fixtures().join("session/sess-1.jsonl"),
+        "workspace": { "current_dir": long_dir },
+        "model": { "id": long_model, "display_name": long_model },
+        "cost": { "total_cost_usd": 1.0 },
+        "context_window": { "context_window_size": 1000000, "current_usage": { "input_tokens": 2000 } },
+        "effort": { "level": "high" }
+    })
+    .to_string();
+    for cols in ["10", "30", "80", "300"] {
+        let out = sb.run(&input, &[("COLUMNS", cols)]);
+        assert!(
+            !out.contains("...") && !out.contains('\u{2026}'),
+            "{cols}: {out:?}"
+        );
+        assert!(out.contains(&"d".repeat(150)), "{cols}: {out:?}");
+        assert!(out.contains(&"x".repeat(150)), "{cols}: {out:?}");
+    }
+}
