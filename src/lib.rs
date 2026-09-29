@@ -77,6 +77,16 @@ fn days(secs: u64) -> u64 {
     secs / 86_400
 }
 
+fn family_name(model_id: &str) -> String {
+    let id = pricing::normalize_model_id(model_id);
+    for (key, name) in [("opus", "Opus"), ("sonnet", "Sonnet"), ("haiku", "Haiku")] {
+        if id.starts_with("claude-") && id.contains(key) {
+            return name.to_string();
+        }
+    }
+    model_id.to_string()
+}
+
 /// Compute the report for one stdin payload.
 pub fn build_report(input: &Input, env: &Env) -> Report {
     let cfg = &env.config;
@@ -91,8 +101,8 @@ pub fn build_report(input: &Input, env: &Env) -> Report {
         .model
         .display_name
         .clone()
-        .filter(|n| !n.is_empty())
-        .unwrap_or_else(|| model_id.clone());
+        .filter(|n| !n.is_empty() && *n != model_id)
+        .unwrap_or_else(|| family_name(&model_id));
     let price = env.prices.lookup(&model_id).map(|(_, p)| p);
     if price.is_none() && !model_id.is_empty() {
         notes.push(format!("unpriced model {model_id}"));
