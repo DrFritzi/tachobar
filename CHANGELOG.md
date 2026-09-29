@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.2]
+
+### Changed
+
+- A raw model id such as `claude-sonnet-5-5` shows as `Sonnet` (also Opus, Haiku).
+  No segment is ever truncated or elided; long values wrap onto a new line.
+
 ## [0.1.1]
 
 ### Fixed
