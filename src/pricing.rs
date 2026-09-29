@@ -279,24 +279,6 @@ pub struct PriceTable {
     pub inference_geo_us_multiplier: f64,
 }
 
-/// How a model id was resolved against the table.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Match {
-    Exact(String),
-    /// Matched after normalising (provider prefix, date suffix, `[1m]` tag...).
-    Normalized(String),
-    /// Matched by family prefix, e.g. `claude-opus-5-5-thinking` -> `claude-opus-5-5`.
-    Family(String),
-}
-
-impl Match {
-    pub fn key(&self) -> &str {
-        match self {
-            Match::Exact(k) | Match::Normalized(k) | Match::Family(k) => k,
-        }
-    }
-}
-
 pub fn cache_path() -> PathBuf {
     paths::cache_dir().join("pricing.json")
 }
@@ -392,45 +374,23 @@ impl PriceTable {
         now.saturating_sub(self.fetched_at)
     }
 
-    pub fn get(&self, key: &str) -> Option<&ModelPrice> {
-        self.models.get(key)
-    }
-
-    /// Resolve a model id. Exact id first, then the normalised id, then the
-    /// longest table key that is a `-`-segment prefix of the normalised id, as
-    /// long as the leftover does not start with a version number. So
-    /// `claude-opus-5-5-thinking` resolves to `claude-opus-5-5`, but an unknown
+    /// Find the table entry for a model id: the exact id first, then the
+    /// normalised id, then the longest `-`-segment prefix of it, as long as
+    /// the leftover does not start with a version number. So
+    /// `claude-opus-5-5-thinking` finds `claude-opus-5-5`, but an unknown
     /// `claude-opus-5-6` does not silently become `claude-opus-5`.
-    pub fn resolve(&self, model_id: &str) -> Option<Match> {
-        if self.models.contains_key(model_id) {
-            return Some(Match::Exact(model_id.to_string()));
+    pub fn lookup(&self, model_id: &str) -> Option<(&str, &ModelPrice)> {
+        if let Some((k, v)) = self.models.get_key_value(model_id) {
+            return Some((k, v));
         }
         let norm = normalize_model_id(model_id);
-        if norm.is_empty() {
-            return None;
-        }
-        if self.models.contains_key(&norm) {
-            return Some(Match::Normalized(norm));
-        }
-        let segments: Vec<&str> = norm.split('-').collect();
-        // Require at least `claude-<family>-<major>` so a bare family never matches.
-        for n in (3..segments.len()).rev() {
-            let rest = segments[n];
-            if rest.chars().next().is_some_and(|c| c.is_ascii_digit()) {
-                continue;
-            }
-            let prefix = segments[..n].join("-");
-            if self.models.contains_key(&prefix) {
-                return Some(Match::Family(prefix));
-            }
-        }
-        None
-    }
-
-    pub fn lookup(&self, model_id: &str) -> Option<(&str, &ModelPrice)> {
-        let m = self.resolve(model_id)?;
-        self.models
-            .get_key_value(m.key())
+        let seg: Vec<&str> = norm.split('-').collect();
+        // Keys have at least three segments (`claude-<family>-<version>`), so
+        // a bare family name never matches.
+        (3..=seg.len())
+            .rev()
+            .filter(|&n| n == seg.len() || !seg[n].starts_with(|c: char| c.is_ascii_digit()))
+            .find_map(|n| self.models.get_key_value(&seg[..n].join("-")))
             .map(|(k, v)| (k.as_str(), v))
     }
 }
@@ -768,26 +728,24 @@ mod tests {
     }
 
     #[test]
-    fn resolves_models() {
+    fn finds_models() {
         let t = table();
+        let key = |id: &str| t.lookup(id).map(|(k, _)| k.to_string());
+        assert_eq!(key("claude-opus-5-5"), Some("claude-opus-5-5".into()));
         assert_eq!(
-            t.resolve("claude-opus-5-5"),
-            Some(Match::Exact("claude-opus-5-5".into()))
+            key("claude-haiku-4-5-20251001"),
+            Some("claude-haiku-4-5".into())
         );
         assert_eq!(
-            t.resolve("claude-haiku-4-5-20251001"),
-            Some(Match::Normalized("claude-haiku-4-5".into()))
-        );
-        assert_eq!(
-            t.resolve("claude-opus-5-5-thinking"),
-            Some(Match::Family("claude-opus-5-5".into()))
+            key("claude-opus-5-5-thinking"),
+            Some("claude-opus-5-5".into())
         );
         // Unknown point release must not silently borrow another version's price.
-        assert_eq!(t.resolve("claude-opus-5-6"), None);
-        assert_eq!(t.resolve("claude-sonnet-6"), None);
-        assert_eq!(t.resolve("gpt-5"), None);
-        assert_eq!(t.resolve("<synthetic>"), None);
-        assert_eq!(t.resolve(""), None);
+        assert_eq!(key("claude-opus-5-6"), None);
+        assert_eq!(key("claude-sonnet-6"), None);
+        assert_eq!(key("gpt-5"), None);
+        assert_eq!(key("<synthetic>"), None);
+        assert_eq!(key(""), None);
     }
 
     #[test]

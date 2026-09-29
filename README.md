@@ -110,7 +110,8 @@ old file as `settings.json.bak`:
 ## Configuration
 
 Run `tachobar config --write` to create the config file with every option
-commented, and `tachobar doctor` to see where it lives:
+commented (a simple TOML subset: `key = value`, strings, numbers, booleans,
+arrays and `[thresholds]`; anything else is reported with its line number), and `tachobar doctor` to see where it lives:
 
 | OS      | Config file                                          |
 | ------- | ---------------------------------------------------- |
@@ -250,8 +251,12 @@ tachobar reads transcripts only for token counts and model ids. Its only
 network traffic is a daily set of HTTPS GETs: GitHub (litellm pricing),
 platform.claude.com (Anthropic's pricing page, for fast-mode and data residency
 prices) and frankfurter.app (exchange rates). A background process makes them
-and never delays rendering. All data ships bundled in the binary, so tachobar
-works offline from the first run. There is no telemetry. See [SECURITY.md](SECURITY.md).
+with a small built-in HTTPS client (rustls, TLS 1.2+), so it never delays
+rendering and needs no `curl`. It honours `HTTPS_PROXY` / `NO_PROXY`.
+Certificates are checked against a bundled Mozilla root list; behind a
+TLS-inspecting proxy, point `SSL_CERT_FILE` at your CA bundle (PEM).
+All data ships bundled in the binary, so tachobar works offline from the first
+run. There is no telemetry. See [SECURITY.md](SECURITY.md).
 
 ## Support
 
@@ -260,4 +265,5 @@ If tachobar saves you money or just a little guesswork, you can
 
 ## License
 
-[MIT](LICENSE) © DrFritzi
+[MIT](LICENSE) © DrFritzi. Third-party notices for the bundled crates are in
+[THIRD-PARTY-LICENSES.md](THIRD-PARTY-LICENSES.md) and in every release archive.

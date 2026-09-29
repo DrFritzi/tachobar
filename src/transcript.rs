@@ -415,7 +415,7 @@ mod tests {
 
     #[test]
     fn scan_main_is_incremental_and_deduped() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testutil::tempdir();
         let p = dir.path().join("s.jsonl");
         let (first, rest) = DUP.split_at(DUP.find('\n').unwrap() + 1);
         fs::write(&p, first).unwrap();
@@ -431,7 +431,7 @@ mod tests {
 
     #[test]
     fn partial_last_line_is_not_consumed() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testutil::tempdir();
         let p = dir.path().join("s.jsonl");
         let first_len = DUP.find('\n').unwrap() + 1;
         fs::write(&p, &DUP[..first_len + 20]).unwrap();
@@ -442,7 +442,7 @@ mod tests {
 
     #[test]
     fn context_from_tail_skips_sidechain() {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = crate::testutil::tempdir();
         let p = dir.path().join("s.jsonl");
         let side = r#"{"isSidechain":true,"requestId":"r9","message":{"id":"m9","model":"claude-haiku-4-5","usage":{"input_tokens":1,"output_tokens":1}}}"#;
         fs::write(&p, format!("{DUP}{side}\n")).unwrap();

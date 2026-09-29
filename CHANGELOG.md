@@ -8,6 +8,18 @@ All notable changes to this project are documented here. The format follows
 
 ### Changed
 
+- Fewer dependencies: the `dirs`, `tempfile`, `ureq` and `toml` crates are
+  replaced by a few hundred lines of own code (a minimal HTTPS client on
+  rustls with proxy and `SSL_CERT_FILE` support, a parser for the config
+  subset of TOML, an in-place `settings.json` editor). Runtime dependencies
+  drop from 53 crates to about 24, and the binary from 3.2 MB to 2.6 MB.
+- `tachobar --init --write` now edits `settings.json` in place, so its
+  formatting, key order and line endings are kept.
+- `tachobar doctor` shows whether a proxy is used.
+- Third-party licence notices (`THIRD-PARTY-LICENSES.md`, generated with
+  cargo-about and checked in CI) ship in every release archive.
+- Bumped `actions/checkout` (v7.0.1), `Swatinem/rust-cache` and
+  `EmbarkStudios/cargo-deny-action`, all still pinned to commit SHAs.
 - Windows install docs: download and unpack the release zip instead of the
   `irm … | iex` script one-liner, which Microsoft Defender blocks as a
   suspicious command pattern.

@@ -1,0 +1,25 @@
+# Third-party licenses
+
+tachobar is MIT licensed (see `LICENSE`). Release binaries include the
+following third-party crates, under their own licenses. This file is generated
+with `cargo about generate about.hbs -o THIRD-PARTY-LICENSES.md`.
+
+## Summary
+
+{{#each overview}}
+- {{{name}}}: {{count}} crate(s)
+{{/each}}
+
+{{#each licenses}}
+## {{{name}}}
+
+Used by:
+{{#each used_by}}
+- [{{crate.name}} {{crate.version}}]({{#if crate.repository}}{{crate.repository}}{{else}}https://crates.io/crates/{{crate.name}}{{/if}})
+{{/each}}
+
+```
+{{{text}}}
+```
+
+{{/each}}

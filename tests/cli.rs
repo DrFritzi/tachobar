@@ -1,5 +1,6 @@
 //! End-to-end: run the binary the way Claude Code does.
 
+mod common;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -9,13 +10,13 @@ fn fixtures() -> PathBuf {
 }
 
 struct Sandbox {
-    dir: tempfile::TempDir,
+    dir: common::TempDir,
 }
 
 impl Sandbox {
     /// Pinned pricing (as a fresh download) and a fixed EUR rate.
     fn new(config: &str) -> Sandbox {
-        let dir = tempfile::tempdir().unwrap();
+        let dir = common::tempdir();
         let cache = dir.path().join("cache");
         std::fs::create_dir_all(&cache).unwrap();
         let now = std::time::SystemTime::now()

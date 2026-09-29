@@ -27,7 +27,8 @@ gh attestation verify tachobar-x86_64-unknown-linux-musl.tar.xz --repo DrFritzi/
 - **Writes:** its own cache, state and config directories. It writes
   `~/.claude/settings.json` only when you run `tachobar --init --write`, and
   keeps a `.bak` copy of the previous file.
-- **Network:** at most once a day, HTTPS GET requests to
+- **Network:** at most once a day, HTTPS GET requests (built-in rustls client, fixed URLs,
+  no shell, `https` only including redirects, size and time limits) to
   `raw.githubusercontent.com` (litellm pricing JSON), `platform.claude.com`
   (Anthropic's pricing page, for fast mode and data residency prices) and
   `api.frankfurter.app` (exchange rates). No telemetry, and nothing from your sessions is sent

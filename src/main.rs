@@ -2,7 +2,7 @@ use std::io::{Read, Write};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
-use tachobar::{config, currency, paths, pricing, refresh, setup, Env};
+use tachobar::{config, currency, http, paths, pricing, refresh, setup, Env};
 
 const HELP: &str = "\
 tachobar - Claude Code status line with accurate costs in any currency
@@ -199,6 +199,10 @@ fn doctor() -> ExitCode {
             "fx:        no rate for {} (amounts shown in USD)",
             cfg.currency
         ),
+    }
+    match http::proxy_in_use() {
+        Some(p) => println!("network:   via proxy {p}"),
+        None => println!("network:   direct"),
     }
     if let Some(p) = setup::settings_path() {
         let configured = std::fs::read_to_string(&p)

@@ -1,13 +1,12 @@
 //! User configuration (`config.toml` in the platform config dir).
 
-use serde::{Deserialize, Serialize};
 use std::fs;
 
 use crate::currency::{Position, Style};
+use crate::minitoml::{self, Value};
 use crate::paths;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Segment {
     Dir,
     Model,
@@ -16,6 +15,24 @@ pub enum Segment {
     Context,
     Cost,
     Burn,
+}
+
+impl Segment {
+    fn parse(name: &str) -> Option<Segment> {
+        DEFAULT_SEGMENTS.into_iter().find(|s| s.name() == name)
+    }
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Segment::Dir => "dir",
+            Segment::Model => "model",
+            Segment::Effort => "effort",
+            Segment::Price => "price",
+            Segment::Context => "context",
+            Segment::Cost => "cost",
+            Segment::Burn => "burn",
+        }
+    }
 }
 
 pub const DEFAULT_SEGMENTS: [Segment; 7] = [
@@ -28,8 +45,7 @@ pub const DEFAULT_SEGMENTS: [Segment; 7] = [
     Segment::Burn,
 ];
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(default, deny_unknown_fields)]
+#[derive(Debug, Clone)]
 pub struct Config {
     /// ISO 4217 code, e.g. "USD", "EUR", "GBP", "CHF", "JPY".
     pub currency: String,
@@ -50,8 +66,7 @@ pub struct Config {
     pub thresholds: Thresholds,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(default, deny_unknown_fields)]
+#[derive(Debug, Clone)]
 pub struct Thresholds {
     /// Output price in USD per 1M tokens at which the model (and cost) color
     /// turns yellow, orange, red.
@@ -105,14 +120,86 @@ impl Config {
     }
 
     pub fn parse(text: &str) -> Result<Config, String> {
-        let mut c: Config =
-            toml::from_str(text).map_err(|e| format!("config.toml: {}", e.message()))?;
-        c.currency = c.currency.trim().to_ascii_uppercase();
+        let bad = |e: String| format!("config.toml: {e}");
+        let mut tables = minitoml::parse(text).map_err(bad)?;
+        let mut root = tables.remove("").unwrap_or_default();
+        let mut th = tables.remove("thresholds").unwrap_or_default();
+        if let Some(name) = tables.keys().next() {
+            return Err(bad(format!("unknown table [{name}]")));
+        }
+        let mut c = Config::default();
+
+        if let Some(v) = root.remove("currency") {
+            let code = string(&v, "currency").map_err(bad)?;
+            c.currency = code.trim().to_ascii_uppercase();
+        }
         if c.currency.len() != 3 || !c.currency.chars().all(|ch| ch.is_ascii_alphabetic()) {
-            return Err(format!(
-                "config.toml: currency must be a 3-letter ISO code, got {:?}",
+            return Err(bad(format!(
+                "currency must be a 3-letter ISO code, got {:?}",
                 c.currency
-            ));
+            )));
+        }
+        if let Some(v) = root.remove("decimals") {
+            c.decimals = Some(
+                usize::try_from(int(&v, "decimals").map_err(bad)?)
+                    .map_err(|_| bad("decimals must not be negative".into()))?,
+            );
+        }
+        if let Some(v) = root.remove("symbol") {
+            c.symbol = Some(string(&v, "symbol").map_err(bad)?);
+        }
+        if let Some(v) = root.remove("symbol_position") {
+            let p = string(&v, "symbol_position").map_err(bad)?;
+            if p != "before" && p != "after" {
+                return Err(bad(format!(
+                    "symbol_position must be \"before\" or \"after\", got {p:?}"
+                )));
+            }
+            c.symbol_position = Some(p);
+        }
+        if let Some(v) = root.remove("decimal_separator") {
+            let s = string(&v, "decimal_separator").map_err(bad)?;
+            let mut chars = s.chars();
+            c.decimal_separator = match (chars.next(), chars.next()) {
+                (Some(ch), None) => Some(ch),
+                _ => return Err(bad("decimal_separator must be a single character".into())),
+            };
+        }
+        if let Some(v) = root.remove("segments") {
+            let Value::Array(items) = &v else {
+                return Err(bad("segments must be an array of names".into()));
+            };
+            c.segments = items
+                .iter()
+                .map(|i| {
+                    let name = string(i, "segments")?;
+                    Segment::parse(&name).ok_or_else(|| format!("unknown segment {name:?}"))
+                })
+                .collect::<Result<_, _>>()
+                .map_err(bad)?;
+        }
+        if let Some(v) = root.remove("no_color") {
+            c.no_color = boolean(&v, "no_color").map_err(bad)?;
+        }
+        if let Some(v) = root.remove("auto_refresh") {
+            c.auto_refresh = boolean(&v, "auto_refresh").map_err(bad)?;
+        }
+        if let Some(key) = root.keys().next() {
+            return Err(bad(format!("unknown key {key}")));
+        }
+
+        if let Some(v) = th.remove("price_per_mtok") {
+            c.thresholds.price_per_mtok = triple(&v, "price_per_mtok").map_err(bad)?;
+        }
+        if let Some(v) = th.remove("context_pct") {
+            c.thresholds.context_pct = triple(&v, "context_pct").map_err(bad)?;
+        }
+        if let Some(v) = th.remove("stale_days") {
+            c.thresholds.stale_days = u64::try_from(int(&v, "stale_days").map_err(bad)?)
+                .map_err(|_| bad("stale_days must not be negative".into()))?;
+        }
+        if let Some(key) = th.keys().next() {
+            return Err(bad(format!("unknown key thresholds.{key}")));
         }
         Ok(c)
     }
@@ -135,6 +222,44 @@ impl Config {
         }
         s
     }
+}
+
+fn string(v: &Value, key: &str) -> Result<String, String> {
+    match v {
+        Value::Str(s) => Ok(s.clone()),
+        _ => Err(format!("{key} must be a string")),
+    }
+}
+
+fn int(v: &Value, key: &str) -> Result<i64, String> {
+    match v {
+        Value::Int(n) => Ok(*n),
+        _ => Err(format!("{key} must be a whole number")),
+    }
+}
+
+fn boolean(v: &Value, key: &str) -> Result<bool, String> {
+    match v {
+        Value::Bool(b) => Ok(*b),
+        _ => Err(format!("{key} must be true or false")),
+    }
+}
+
+fn triple(v: &Value, key: &str) -> Result<[f64; 3], String> {
+    let err = || format!("{key} must be three numbers, e.g. [10.0, 25.0, 50.0]");
+    let Value::Array(items) = v else {
+        return Err(err());
+    };
+    let nums: Vec<f64> = items
+        .iter()
+        .map(|i| match i {
+            Value::Float(f) => Some(*f),
+            Value::Int(n) => Some(*n as f64),
+            _ => None,
+        })
+        .collect::<Option<_>>()
+        .ok_or_else(err)?;
+    nums.try_into().map_err(|_| err())
 }
 
 pub const DEFAULT_TOML: &str = r#"# tachobar configuration
@@ -196,6 +321,9 @@ mod tests {
         assert!(Config::parse("currency = \"euro\"").is_err());
         assert!(Config::parse("segments = [\"nope\"]").is_err());
         assert!(Config::parse("colour = true").is_err());
+        assert!(Config::parse("[nope]").is_err());
+        assert!(Config::parse("[thresholds]\nstale_days = -1").is_err());
+        assert!(Config::parse("[thresholds]\nprice_per_mtok = [1, 2]").is_err());
     }
 
     #[test]

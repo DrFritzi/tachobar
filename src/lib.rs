@@ -3,13 +3,19 @@
 pub mod burn;
 pub mod config;
 pub mod currency;
+pub mod http;
 pub mod input;
+pub mod minitoml;
 pub mod paths;
 pub mod pricing;
 pub mod refresh;
 pub mod render;
 pub mod setup;
 pub mod transcript;
+
+#[cfg(test)]
+#[path = "../tests/common/mod.rs"]
+mod testutil;
 
 use std::path::Path;
 
