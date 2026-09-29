@@ -169,13 +169,34 @@ fn init_prints_snippet() {
 }
 
 #[test]
-fn raw_model_id_shows_family_name() {
-    let sb = Sandbox::new("segments = [\"model\"]\n");
-    let input = serde_json::json!({
-        "model": { "id": "claude-sonnet-5-5", "display_name": "claude-sonnet-5-5" }
-    })
-    .to_string();
-    assert!(sb.run(&input, &[]).starts_with("Sonnet "));
+fn raw_model_id_shows_family_and_version() {
+    let sb = Sandbox::new(
+        "[thresholds]
+stale_days = 100000
+",
+    );
+    std::fs::remove_file(sb.dir.path().join("cache/pricing.json")).unwrap();
+    let run = |id: &str| {
+        let input = serde_json::json!({
+            "workspace": { "current_dir": "/work/project" },
+            "model": { "id": id, "display_name": id },
+            "cost": { "total_cost_usd": 1.5 },
+            "context_window": { "context_window_size": 1000000, "current_usage": { "input_tokens": 2000 } },
+            "effort": { "level": "high" }
+        })
+        .to_string();
+        sb.run(&input, &[])
+    };
+    let out = run("claude-sonnet-5-5");
+    assert_eq!(
+        out,
+        "project Sonnet 5.5 high $2/$10/M 2k/1M ctx (0%) $1.50\n"
+    );
+    assert!(!out.contains("...") && !out.contains('\u{2026}'));
+    assert!(run("claude-sonnet-5").starts_with("project Sonnet 5 "));
+    assert!(run("claude-haiku-4-5-20251001").starts_with("project Haiku 4.5 "));
+    assert!(run("claude-opus-5-5-fast").starts_with("project claude-opus-5-5-fast "));
+    assert!(run("acme-x").starts_with("project acme-x "));
 }
 
 #[test]

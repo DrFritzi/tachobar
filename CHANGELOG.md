@@ -6,6 +6,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.3]
+
+### Changed
+
+- A raw model id such as `claude-sonnet-5-5` shows family and version (`Sonnet 5.5`); ids that do not match `claude-<family>-<major>[-<minor>]` show as sent.
+
 ## [0.1.2]
 
 ### Changed

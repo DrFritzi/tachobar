@@ -79,12 +79,21 @@ fn days(secs: u64) -> u64 {
 
 fn family_name(model_id: &str) -> String {
     let id = pricing::normalize_model_id(model_id);
-    for (key, name) in [("opus", "Opus"), ("sonnet", "Sonnet"), ("haiku", "Haiku")] {
-        if id.starts_with("claude-") && id.contains(key) {
-            return name.to_string();
+    let parts: Vec<&str> = id.split('-').collect();
+    let numeric = |p: &&str| !p.is_empty() && p.chars().all(|c| c.is_ascii_digit());
+    let family = match parts.get(1) {
+        Some(&"opus") => "Opus",
+        Some(&"sonnet") => "Sonnet",
+        Some(&"haiku") => "Haiku",
+        _ => return model_id.to_string(),
+    };
+    match parts.as_slice() {
+        ["claude", _, major] if numeric(major) => format!("{family} {major}"),
+        ["claude", _, major, minor] if numeric(major) && numeric(minor) => {
+            format!("{family} {major}.{minor}")
         }
+        _ => model_id.to_string(),
     }
-    model_id.to_string()
 }
 
 /// Compute the report for one stdin payload.
