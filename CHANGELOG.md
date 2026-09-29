@@ -6,6 +6,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.1]
+
+### Fixed
+
+- `claude-sonnet-5-5` was unpriced, so every call of a subagent running it
+  showed as `N subagent calls unpriced`. A bundled supplement
+  (`data/pricing-supplement.json`) now carries current models litellm has not
+  listed yet; litellm wins as soon as it has the model.
+
 ### Changed
 
 - README: clearer install instructions (plugin, macOS/Linux, Windows zip,

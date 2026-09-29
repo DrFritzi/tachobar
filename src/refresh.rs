@@ -26,7 +26,8 @@ fn attempt_marker() -> PathBuf {
 /// (last download or bundled snapshot) are kept and the second value says why.
 pub fn fetch_pricing() -> Result<(PriceFile, Option<String>), String> {
     let body = http::get(pricing::LITELLM_URL)?;
-    let models = pricing::extract_from_litellm(&body)?;
+    let mut models = pricing::extract_from_litellm(&body)?;
+    pricing::add_supplement(&mut models);
     let current = PriceTable::load();
     let mut file = PriceFile {
         fetched_at: paths::now_secs(),

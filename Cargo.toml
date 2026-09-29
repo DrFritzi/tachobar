@@ -1,6 +1,6 @@
 [package]
 name = "tachobar"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 rust-version = "1.85"
 description = "Cross-platform Claude Code status line with accurate costs (cache tiers, subagents) in any currency"
