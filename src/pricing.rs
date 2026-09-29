@@ -26,6 +26,17 @@ const CACHE_READ_RATIO: f64 = 0.1;
 
 const SNAPSHOT: &str = include_str!("../data/pricing-snapshot.json");
 
+/// Current models litellm may not list yet. litellm's entry wins once it exists.
+const SUPPLEMENT: &str = include_str!("../data/pricing-supplement.json");
+
+pub fn add_supplement(models: &mut BTreeMap<String, ModelPrice>) {
+    let extra: BTreeMap<String, ModelPrice> =
+        serde_json::from_str(SUPPLEMENT).expect("bundled pricing supplement is valid JSON");
+    for (k, v) in extra {
+        models.entry(k).or_insert(v);
+    }
+}
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct SearchCost {
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -285,8 +296,9 @@ pub fn cache_path() -> PathBuf {
 
 impl PriceTable {
     pub fn bundled() -> PriceTable {
-        let file: PriceFile =
+        let mut file: PriceFile =
             serde_json::from_str(SNAPSHOT).expect("bundled pricing snapshot is valid JSON");
+        add_supplement(&mut file.models);
         Self::from_file(file, Source::Bundled)
     }
 
@@ -807,5 +819,40 @@ mod tests {
         assert!(t.fetched_at > 0);
         assert!(!t.models.is_empty());
         assert!(t.models.keys().all(|k| k.starts_with("claude-")));
+    }
+
+    #[test]
+    fn current_models_are_priced() {
+        let t = PriceTable::bundled();
+        let cases = [
+            ("claude-sonnet-5-5", 2.0, 10.0, 0.2),
+            ("claude-sonnet-5", 2.0, 10.0, 0.2),
+            ("claude-opus-5-5", 4.0, 20.0, 0.2),
+            ("claude-fable-5-1", 10.0, 50.0, 0.25),
+            ("claude-haiku-4-5", 1.0, 5.0, 0.1),
+            ("claude-haiku-4-5-20251001", 1.0, 5.0, 0.1),
+        ];
+        for (id, i, o, cr) in cases {
+            let (_, p) = t.lookup(id).unwrap_or_else(|| panic!("{id} is unpriced"));
+            let r = p.rates(0).unwrap();
+            let close = |a: f64, b: f64| (a * 1e6 - b).abs() < 1e-9;
+            assert!(
+                close(r.input, i) && close(r.output, o) && close(r.cache_read, cr),
+                "{id}"
+            );
+        }
+    }
+
+    #[test]
+    fn supplement_never_overrides_litellm() {
+        let mut m = BTreeMap::new();
+        let own = ModelPrice {
+            input_cost_per_token: Some(9.0),
+            output_cost_per_token: Some(9.0),
+            ..Default::default()
+        };
+        m.insert("claude-sonnet-5-5".to_string(), own.clone());
+        add_supplement(&mut m);
+        assert_eq!(m["claude-sonnet-5-5"], own);
     }
 }

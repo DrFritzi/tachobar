@@ -1,5 +1,5 @@
 {
-  "fetched_at": 1790592498,
+  "fetched_at": 1790664194,
   "models": {
     "claude-fable-5": {
       "input_cost_per_token": 0.00001,
@@ -215,6 +215,17 @@
       }
     },
     "claude-sonnet-5": {
+      "input_cost_per_token": 2e-6,
+      "output_cost_per_token": 0.00001,
+      "cache_creation_input_token_cost": 2.5e-6,
+      "cache_creation_input_token_cost_above_1hr": 4e-6,
+      "cache_read_input_token_cost": 2e-7,
+      "max_input_tokens": 1000000,
+      "search_context_cost_per_query": {
+        "search_context_size_medium": 0.01
+      }
+    },
+    "claude-sonnet-5-5": {
       "input_cost_per_token": 2e-6,
       "output_cost_per_token": 0.00001,
       "cache_creation_input_token_cost": 2.5e-6,

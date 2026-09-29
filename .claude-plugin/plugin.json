@@ -1,7 +1,7 @@
 {
   "name": "tachobar",
   "displayName": "tachobar",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Status line with accurate session cost (cache tiers, subagents), context usage and burn rate in any currency. Run /tachobar:setup after installing.",
   "author": {
     "name": "DrFritzi",
