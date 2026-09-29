@@ -8,6 +8,12 @@ All notable changes to this project are documented here. The format follows
 
 ### Changed
 
+- README: clearer install instructions (plugin, macOS/Linux, Windows zip,
+  source) with update and uninstall steps, a guide to every number on the
+  line, and screenshots of the color tiers, currencies and warnings.
+- The PowerShell script installer is no longer published; Windows uses the
+  release zip.
+
 - Fewer dependencies: the `dirs`, `tempfile`, `ureq` and `toml` crates are
   replaced by a few hundred lines of own code (a minimal HTTPS client on
   rustls with proxy and `SSL_CERT_FILE` support, a parser for the config
