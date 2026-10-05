@@ -6,6 +6,28 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.3]
+
+### Changed
+
+- A raw model id such as `claude-sonnet-5-5` shows family and version (`Sonnet 5.5`); ids that do not match `claude-<family>-<major>[-<minor>]` show as sent.
+
+## [0.1.2]
+
+### Changed
+
+- A raw model id such as `claude-sonnet-5-5` shows as `Sonnet` (also Opus, Haiku).
+  No segment is ever truncated or elided; long values wrap onto a new line.
+
+## [0.1.1]
+
+### Fixed
+
+- `claude-sonnet-5-5` was unpriced, so every call of a subagent running it
+  showed as `N subagent calls unpriced`. A bundled supplement
+  (`data/pricing-supplement.json`) now carries current models litellm has not
+  listed yet; litellm wins as soon as it has the model.
+
 ### Changed
 
 - README: an annotated screenshot numbering every part of the status line.

@@ -167,3 +167,60 @@ fn init_prints_snippet() {
     assert!(text.contains("\"statusLine\""));
     assert!(text.contains("\"type\": \"command\""));
 }
+
+#[test]
+fn raw_model_id_shows_family_and_version() {
+    let sb = Sandbox::new(
+        "[thresholds]
+stale_days = 100000
+",
+    );
+    std::fs::remove_file(sb.dir.path().join("cache/pricing.json")).unwrap();
+    let run = |id: &str| {
+        let input = serde_json::json!({
+            "workspace": { "current_dir": "/work/project" },
+            "model": { "id": id, "display_name": id },
+            "cost": { "total_cost_usd": 1.5 },
+            "context_window": { "context_window_size": 1000000, "current_usage": { "input_tokens": 2000 } },
+            "effort": { "level": "high" }
+        })
+        .to_string();
+        sb.run(&input, &[])
+    };
+    let out = run("claude-sonnet-5-5");
+    assert_eq!(
+        out,
+        "project Sonnet 5.5 high $2/$10/M 2k/1M ctx (0%) $1.50\n"
+    );
+    assert!(!out.contains("...") && !out.contains('\u{2026}'));
+    assert!(run("claude-sonnet-5").starts_with("project Sonnet 5 "));
+    assert!(run("claude-haiku-4-5-20251001").starts_with("project Haiku 4.5 "));
+    assert!(run("claude-opus-5-5-fast").starts_with("project claude-opus-5-5-fast "));
+    assert!(run("acme-x").starts_with("project acme-x "));
+}
+
+#[test]
+fn never_hides_values_behind_ellipsis() {
+    let sb = Sandbox::new("");
+    let long_dir = format!("/work/{}", "d".repeat(150));
+    let long_model = format!("acme-{}", "x".repeat(150));
+    let input = serde_json::json!({
+        "session_id": "e2e-session",
+        "transcript_path": fixtures().join("session/sess-1.jsonl"),
+        "workspace": { "current_dir": long_dir },
+        "model": { "id": long_model, "display_name": long_model },
+        "cost": { "total_cost_usd": 1.0 },
+        "context_window": { "context_window_size": 1000000, "current_usage": { "input_tokens": 2000 } },
+        "effort": { "level": "high" }
+    })
+    .to_string();
+    for cols in ["10", "30", "80", "300"] {
+        let out = sb.run(&input, &[("COLUMNS", cols)]);
+        assert!(
+            !out.contains("...") && !out.contains('\u{2026}'),
+            "{cols}: {out:?}"
+        );
+        assert!(out.contains(&"d".repeat(150)), "{cols}: {out:?}");
+        assert!(out.contains(&"x".repeat(150)), "{cols}: {out:?}");
+    }
+}
