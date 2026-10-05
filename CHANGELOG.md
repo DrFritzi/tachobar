@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- README: an annotated screenshot numbering every part of the status line.
+
 ## [0.1.3]
 
 ### Changed

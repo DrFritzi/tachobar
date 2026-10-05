@@ -9,20 +9,18 @@ that shows **what your session really costs**, in your own currency.
 
 ## Reading the line
 
-```
-myproject Opus 5.5 high €3.51/€17.54/M 142k/1M ctx (14%) €11.20 327 tok/s €8.54/h
-```
+![Anatomy of the status line: every number explained](docs/anatomy.png)
 
 | Part                 | Meaning                                                                                                                                                                                                  |
 | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `myproject`          | Name of the current directory.                                                                                                                                                                           |
-| `Opus 5.5`           | The model. Its color follows its **output** price: green under $10 per 1M tokens, yellow from $10, orange from $25, red from $50 (adjustable).                                                            |
-| `high`               | Reasoning effort: green `low`, yellow `medium`, orange `high`, red `xhigh`/`max`.                                                                                                                        |
-| `€3.51/€17.54/M`     | List price per **1 million tokens**: input / output, in your currency. Cache reads and writes are priced from these (see below). `?/?/M` means the model is not in the price list yet.                    |
-| `142k/1M ctx (14%)`  | Tokens **currently in the context window** / the window's size, and the share used. Green below 50%, yellow from 50%, orange from 80%, red from 95%. Time to `/compact` when it turns red.                 |
-| `€11.20`             | **Session cost** so far at list price: Claude Code's own total plus all subagents. A trailing `+` means the true cost is higher (see Limits).                                                            |
-| `327 tok/s`          | Burn rate: tokens processed per second over the last hour, all kinds (input, cache, output), main conversation and subagents. Cache reads dominate, so this is throughput, not output speed.             |
-| `€8.54/h`            | Burn rate in money: what the last hour of activity costs per hour. Shown once there is at least a minute of data.                                                                                        |
+| **1** `myproject`          | Name of the current directory.                                                                                                                                                                           |
+| **2** `Opus 5.5`           | The model. Its color follows its **output** price: green under $10 per 1M tokens, yellow from $10, orange from $25, red from $50 (adjustable).                                                            |
+| **3** `high`               | Reasoning effort: green `low`, yellow `medium`, orange `high`, red `xhigh`/`max`.                                                                                                                        |
+| **4** `€3.51/€17.54/M`     | List price per **1 million tokens**: input / output, in your currency. Cache reads and writes are priced from these (see below). `?/?/M` means the model is not in the price list yet.                    |
+| **5** `142k/1M ctx (14%)`  | Tokens **currently in the context window** / the window's size, and the share used. Green below 50%, yellow from 50%, orange from 80%, red from 95%. Time to `/compact` when it turns red.                 |
+| **6** `€11.20`             | **Session cost** so far at list price: Claude Code's own total plus all subagents. Same color as the model. A trailing `+` means the true cost is higher (see Limits).                                                            |
+| **7** `327 tok/s`          | Burn rate: tokens processed per second over the last hour of samples, all kinds (input, cache, output), main conversation and subagents. Cache reads dominate, so this is throughput, not output speed.             |
+| **8** `€8.54/h`            | Burn rate in money: what the last hour of activity costs per hour. Shown once there is at least a minute of data.                                                                                        |
 | `[…]` in orange      | A warning: unpriced model, stale prices or exchange rates, missing exchange rate, unpriced or estimated subagent calls.                                                                                  |
 
 Colors show up when the terminal supports them; `NO_COLOR` turns them off.
