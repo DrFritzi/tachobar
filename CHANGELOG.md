@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- README: an annotated screenshot numbering every part of the status line.
+
 ## [0.1.3]
 
 ### Changed
@@ -29,8 +33,6 @@ All notable changes to this project are documented here. The format follows
   listed yet; litellm wins as soon as it has the model.
 
 ### Changed
-
-- README: an annotated screenshot numbering every part of the status line.
 
 - README: clearer install instructions (plugin, macOS/Linux, Windows zip,
   source) with update and uninstall steps, a guide to every number on the
