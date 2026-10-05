@@ -1372,7 +1372,7 @@ DEALINGS IN THE SOFTWARE.
 ## MIT License
 
 Used by:
-- [libc 0.2.189](https://github.com/rust-lang/libc)
+- [libc 0.2.190](https://github.com/rust-lang/libc)
 
 ```
 Copyright (c) The Rust Project Developers
