@@ -6,8 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.4]
+
 ### Changed
 
+- Bundled exchange rates and prices refreshed, so a first run without network
+  starts from current data.
+- Dependency updates (`libc`, `cc`); third-party licence notices regenerated.
 - README: an annotated screenshot numbering every part of the status line.
 
 ## [0.1.3]
