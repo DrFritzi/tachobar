@@ -18,10 +18,10 @@ that shows **what your session really costs**, in your own currency.
 | **3** `high`               | Reasoning effort: green `low`, yellow `medium`, orange `high`, red `xhigh`/`max`.                                                                                                                        |
 | **4** `€3.51/€17.54/M`     | List price per **1 million tokens**: input / output, in your currency. Cache reads and writes are priced from these (see below). `?/?/M` means the model is not in the price list yet.                    |
 | **5** `142k/1M ctx (14%)`  | Tokens **currently in the context window** / the window's size, and the share used. Green below 50%, yellow from 50%, orange from 80%, red from 95%. Time to `/compact` when it turns red.                 |
-| **6** `€11.20`             | **Session cost** so far at list price: Claude Code's own total plus all subagents. Same color as the model. A trailing `+` means the true cost is higher (see Limits).                                                            |
+| **6** `€11.20`             | **Session cost** so far at list price: Claude Code's `total_cost_usd`, which already includes all subagents. Same color as the model.                                                            |
 | **7** `327 tok/s`          | Burn rate: tokens processed per second over the last hour of samples, all kinds (input, cache, output), main conversation and subagents. Cache reads dominate, so this is throughput, not output speed.             |
 | **8** `€8.54/h`            | Burn rate in money: what the last hour of activity costs per hour. Shown once there is at least a minute of data.                                                                                        |
-| `[…]` in orange      | A warning: unpriced model, stale prices or exchange rates, missing exchange rate, unpriced or estimated subagent calls.                                                                                  |
+| `[…]` in orange      | A warning: unpriced model, stale prices or exchange rates, missing exchange rate.                                                                                  |
 
 Colors show up when the terminal supports them; `NO_COLOR` turns them off.
 
@@ -41,10 +41,8 @@ the line says so:
 
 ## Why tachobar
 
-- **Correct costs.** Every cache bucket is priced separately (5-minute and
-  1-hour cache writes, cache reads), long-context (>200k) rates apply where a
-  model has them, and **subagent spend is included**. Claude Code's own
-  session total leaves subagents out.
+- **Correct costs.** The session cost is Claude Code's own `total_cost_usd`,
+  which already includes **subagent spend**; tachobar shows it as is.
 - **Any currency.** ECB reference rates, refreshed daily. `€`, `£`, `CHF`,
   `¥`, `kr` and more, each with its usual symbol placement.
 - **Honest.** An unknown model shows `?`, and stale prices or exchange rates
@@ -181,7 +179,7 @@ stale_days = 7                       # warn when prices or rates are older than 
 | `effort`  | Reasoning effort, from Claude Code, then `CLAUDE_EFFORT_LEVEL`, then `effortLevel` in settings |
 | `price`   | Input/output list price per 1M tokens                                                          |
 | `context` | Tokens in context / window size, and the percentage                                            |
-| `cost`    | Session cost including subagents; a trailing `+` means part of it could not be priced          |
+| `cost`    | Claude Code's `total_cost_usd`, which already includes subagents          |
 | `burn`    | Tokens per second and cost per hour over the last hour (needs at least a minute of data)       |
 
 Warnings appear in brackets at the end, e.g. `[unpriced model claude-x]`,
@@ -203,18 +201,16 @@ Environment: `NO_COLOR`, `COLUMNS` (set by Claude Code, used for wrapping),
 
 ## How costs are calculated
 
-**Session cost = Claude Code's `cost.total_cost_usd` + the priced subagent
-transcripts.**
+**Session cost = Claude Code's `cost.total_cost_usd`, as sent on the status
+line.** That figure already includes subagent (Task tool) spend, so tachobar
+shows it as is and adds nothing. Claude Code computes it at list price (or
+from your `modelPricing` setting). Subagent transcripts are read only for
+token counts, for the burn rate.
 
-1. **Main conversation.** tachobar uses `cost.total_cost_usd` from the JSON
-   Claude Code sends to the status line. Claude Code computes it at list price
-   (or from your `modelPricing` setting).
-2. **Subagents.** Claude Code does not include subagent (Task tool) spend in
-   that figure. tachobar reads every
-   `<session>/subagents/agent-*.jsonl` next to the session transcript and
-   prices each API response with **the model that response used**, so a Haiku
-   subagent is billed as Haiku even when the main loop runs Opus.
-3. **Per response,** in USD per token from litellm's
+The formula below is the per-response pricing used to check the figure
+against transcripts.
+
+1. **Per response,** in USD per token from litellm's
    [`model_prices_and_context_window.json`](https://github.com/BerriAI/litellm/blob/main/model_prices_and_context_window.json):
 
    ```
@@ -249,8 +245,8 @@ transcripts.**
    block (thinking, text, tool call), and each line repeats the same usage.
    Lines are deduplicated by `message.id` + `requestId`, so each API response
    is counted once.
-6. **Caching.** A finished subagent transcript never changes, so its cost is
-   cached by file size and modification time and parsed only once.
+6. **Caching.** A finished subagent transcript never changes, so its token
+   count is cached by file size and modification time and parsed only once.
 7. **Currency.** USD amounts are converted with the latest ECB reference
    rate from [frankfurter.app](https://frankfurter.app).
 
@@ -264,16 +260,6 @@ transcripts.**
 - It is an **estimate at list price**, not your invoice. Negotiated
   discounts and subscription plans (Pro/Max) are not reflected. On a
   subscription, the number is what the usage *would* cost at API prices.
-- A trailing **`+`** on the cost means the true cost is higher than shown,
-  and a note in the line says why:
-  - `[N subagent calls unpriced]`: a model litellm does not know yet, fast
-    mode on a model without a published fast price, or a `speed` value
-    tachobar does not know. These calls are left out of the total.
-  - `[N subagent calls estimated]`: priced, but only as a lower bound or
-    list-price estimate. This covers cache writes logged without the
-    5-minute/1-hour split (priced at the cheaper 5-minute rate), Priority
-    Tier (billed through a capacity commitment, so list price is only an
-    estimate), and unknown `inference_geo` / `service_tier` values.
 - A model litellm does not know shows `?` for its price.
 - Exchange rates are ECB daily reference rates, not your card's rate.
 - The tokens/s figure counts all tokens processed (input, cache reads and

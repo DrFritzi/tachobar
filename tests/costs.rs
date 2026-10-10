@@ -118,14 +118,19 @@ fn session_totals_and_cache_reuse() {
     isolate();
     let p = prices();
     let main = fixtures().join("session/sess-1.jsonl");
-    let u = session_usage(&main, "sess-1-test", &p);
-    assert_eq!(u.subagent_files, 4);
-    close(u.subagents.usd, 0.009065 + 0.3613 + 0.14168);
-    assert_eq!(u.subagents.unpriced, 1);
-    assert_eq!(u.subagents.estimated, 1);
+    let u = session_usage(&main, "sess-1-test");
+    let subagent_tokens: u64 = [
+        "agent-a.jsonl",
+        "agent-b.jsonl",
+        "agent-c.jsonl",
+        "agent-d.jsonl",
+    ]
+    .iter()
+    .map(|f| file_cost(&subagent(f), &p).tokens)
+    .sum();
+    assert_eq!(u.subagent_tokens, subagent_tokens);
     assert_eq!(u.main_tokens, 8 + 682 + 231_276 + 22_241);
-    // Second call is served from the cache and must agree.
-    let again = session_usage(&main, "sess-1-test", &p);
+    let again = session_usage(&main, "sess-1-test");
     assert_eq!(again, u);
 }
 

@@ -21,8 +21,6 @@ pub struct Report {
     pub effort: Option<String>,
     pub context: Option<(u64, u64)>,
     pub cost_usd: Option<f64>,
-    /// Some responses in the total could not be priced exactly.
-    pub cost_partial: bool,
     pub burn: Option<Rate>,
     /// USD -> display currency. `None` shows USD.
     pub fx_rate: Option<f64>,
@@ -139,10 +137,7 @@ pub fn segments(r: &Report, cfg: &Config, painter: &Painter) -> Vec<String> {
             }
             Segment::Cost => {
                 if let Some(usd) = r.cost_usd {
-                    let mut text = style.format(usd * rate);
-                    if r.cost_partial {
-                        text.push('+');
-                    }
+                    let text = style.format(usd * rate);
                     out.push(painter.paint(model_color, &text));
                 }
             }
@@ -243,7 +238,6 @@ mod tests {
             effort: Some("high".into()),
             context: Some((142_000, 1_000_000)),
             cost_usd: Some(10.0),
-            cost_partial: false,
             burn: Some(Rate {
                 tokens_per_sec: 1234.0,
                 usd_per_hour: 8.0,

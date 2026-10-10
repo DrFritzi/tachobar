@@ -1,0 +1,5 @@
+{
+  "session_id": "sub-cost-1",
+  "model": { "id": "claude-haiku-5-5" },
+  "cost": { "total_cost_usd": 0.009757905 }
+}

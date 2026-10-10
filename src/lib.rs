@@ -156,37 +156,20 @@ pub fn build_report(input: &Input, env: &Env) -> Report {
         .context_tokens()
         .or_else(|| transcript.and_then(transcript::context_tokens_from_tail));
 
-    let needs_transcripts = cfg
-        .segments
-        .iter()
-        .any(|s| matches!(s, Segment::Cost | Segment::Burn));
+    let needs_transcripts = cfg.segments.contains(&Segment::Burn);
     let usage = match (transcript, &input.session_id) {
-        (Some(t), Some(id)) if needs_transcripts => {
-            Some(transcript::session_usage(t, id, &env.prices))
-        }
+        (Some(t), Some(id)) if needs_transcripts => Some(transcript::session_usage(t, id)),
         _ => None,
     };
 
-    let main_usd = input.cost.total_cost_usd;
-    let sub = usage.map(|u| u.subagents).unwrap_or_default();
-    let cost_usd = match (main_usd, sub.usd > 0.0 || sub.unpriced > 0) {
-        (None, false) => None,
-        (m, _) => Some(m.unwrap_or(0.0) + sub.usd),
-    };
-    if sub.unpriced > 0 {
-        notes.push(format!("{} subagent calls unpriced", sub.unpriced));
-    }
-    if sub.estimated > 0 {
-        notes.push(format!("{} subagent calls estimated", sub.estimated));
-    }
-
+    let cost_usd = input.cost.total_cost_usd;
     let burn = match (
         &input.session_id,
         cost_usd,
         cfg.segments.contains(&Segment::Burn),
     ) {
         (Some(id), Some(usd), true) => {
-            let tokens = usage.map_or(0, |u| u.main_tokens + u.subagents.tokens);
+            let tokens = usage.map_or(0, |u| u.main_tokens + u.subagent_tokens);
             burn::record(id, env.now, usd, tokens)
         }
         _ => None,
@@ -210,7 +193,6 @@ pub fn build_report(input: &Input, env: &Env) -> Report {
             .or_else(|| env.effort_fallback.clone()),
         context: context_tokens.map(|t| (t, context_size)),
         cost_usd,
-        cost_partial: sub.unpriced > 0 || sub.estimated > 0,
         burn,
         fx_rate: if wants_fx { fx_rate } else { Some(1.0) },
         notes,
