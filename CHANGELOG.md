@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- Session cost no longer adds subagent transcripts on top of Claude Code's
+  `total_cost_usd`, which already includes subagent spend (it was counted
+  twice). The `+` marker and the subagent unpriced/estimated warnings are gone.
+  Subagent transcripts are read for token counts only (burn rate).
+
 ## [0.1.4]
 
 ### Changed

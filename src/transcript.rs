@@ -172,7 +172,7 @@ pub fn read_entries<R: BufRead>(reader: R) -> Vec<Entry> {
 }
 
 /// Aggregated, priced usage.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct CostSum {
     pub usd: f64,
     pub tokens: u64,
@@ -180,7 +180,6 @@ pub struct CostSum {
     pub unpriced: u32,
     /// Responses priced as a lower bound or list-price estimate (unknown
     /// cache TTL, Priority Tier...).
-    #[serde(default)]
     pub estimated: u32,
 }
 
@@ -220,6 +219,16 @@ pub fn file_cost(path: &Path, prices: &PriceTable) -> CostSum {
     }
 }
 
+fn file_tokens(path: &Path) -> u64 {
+    match File::open(path) {
+        Ok(f) => read_entries(BufReader::new(f))
+            .iter()
+            .map(|e| e.usage.total_tokens())
+            .sum(),
+        Err(_) => 0,
+    }
+}
+
 /// `<dir>/<session-id>.jsonl` -> `<dir>/<session-id>/subagents`.
 pub fn subagents_dir(transcript: &Path) -> Option<PathBuf> {
     let stem = transcript.file_stem()?;
@@ -230,15 +239,12 @@ pub fn subagents_dir(transcript: &Path) -> Option<PathBuf> {
 struct FileStamp {
     size: u64,
     mtime: u64,
-    cost: CostSum,
+    tokens: u64,
 }
 
 /// Per-session cache so finished subagent transcripts are parsed once.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 struct SessionCache {
-    /// `fetched_at` of the price table the costs were computed with.
-    #[serde(default)]
-    prices_at: u64,
     #[serde(default)]
     subagents: BTreeMap<String, FileStamp>,
     #[serde(default)]
@@ -268,39 +274,32 @@ fn stamp(meta: &fs::Metadata) -> (u64, u64) {
     (meta.len(), mtime)
 }
 
-/// What the transcripts add on top of Claude Code's own session cost.
+/// Tokens of the main conversation and of its subagents, for the burn rate.
 #[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct SessionUsage {
-    pub subagents: CostSum,
-    pub subagent_files: usize,
+    pub subagent_tokens: u64,
     /// Tokens of the main conversation so far (deduplicated).
     pub main_tokens: u64,
 }
 
-/// Cost of all subagent transcripts plus a running token count of the main
+/// Token counts of all subagent transcripts plus a running count of the main
 /// transcript. Files whose size and mtime are unchanged are served from the
 /// per-session cache; only growing files are re-read.
-pub fn session_usage(transcript: &Path, session_id: &str, prices: &PriceTable) -> SessionUsage {
+pub fn session_usage(transcript: &Path, session_id: &str) -> SessionUsage {
     let cache_path = session_cache_path(session_id);
     let mut cache: SessionCache = fs::read(&cache_path)
         .ok()
         .and_then(|b| serde_json::from_slice(&b).ok())
         .unwrap_or_default();
-    if cache.prices_at != prices.fetched_at {
-        cache.subagents.clear();
-        cache.prices_at = prices.fetched_at;
-    }
     let before_subs = cache.subagents.clone();
     let before_main = cache.main.clone();
 
     let mut out = SessionUsage::default();
     let mut seen = Vec::new();
     if let Some(dir) = subagents_dir(transcript) {
-        let mut files: Vec<_> = fs::read_dir(&dir)
+        let files: Vec<_> = fs::read_dir(&dir)
             .map(|rd| rd.flatten().collect())
             .unwrap_or_default();
-        // Sorted so the floating-point sum is the same on every render.
-        files.sort_by_key(|e| e.file_name());
         for ent in files {
             let name = ent.file_name().to_string_lossy().into_owned();
             if !(name.starts_with("agent-") && name.ends_with(".jsonl")) {
@@ -308,18 +307,22 @@ pub fn session_usage(transcript: &Path, session_id: &str, prices: &PriceTable) -
             }
             let Ok(meta) = ent.metadata() else { continue };
             let (size, mtime) = stamp(&meta);
-            let cost = match cache.subagents.get(&name) {
-                Some(s) if s.size == size && s.mtime == mtime => s.cost,
+            let tokens = match cache.subagents.get(&name) {
+                Some(s) if s.size == size && s.mtime == mtime => s.tokens,
                 _ => {
-                    let cost = file_cost(&ent.path(), prices);
-                    cache
-                        .subagents
-                        .insert(name.clone(), FileStamp { size, mtime, cost });
-                    cost
+                    let tokens = file_tokens(&ent.path());
+                    cache.subagents.insert(
+                        name.clone(),
+                        FileStamp {
+                            size,
+                            mtime,
+                            tokens,
+                        },
+                    );
+                    tokens
                 }
             };
-            out.subagents.add(&cost);
-            out.subagent_files += 1;
+            out.subagent_tokens += tokens;
             seen.push(name);
         }
     }

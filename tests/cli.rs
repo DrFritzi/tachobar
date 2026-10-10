@@ -85,16 +85,26 @@ fn stdin(model: &str, cost: f64) -> String {
 }
 
 #[test]
-fn renders_full_line_in_eur_with_subagents() {
+fn renders_full_line_in_eur_without_adding_subagents() {
     let sb = Sandbox::new("currency = \"EUR\"\n");
     let out = sb.run(&stdin("claude-opus-5-5", 1.5), &[]);
-    // Main 1.5 USD + subagents 0.512045 USD (incl. fast mode + US-only) = 2.012045 USD -> 1.006 EUR.
-    // Prices: 4/20 USD per 1M -> 2/10 EUR.
     assert_eq!(
         out,
-        "myproject Opus 5.5 high €2/€10/M 142k/1M ctx (14%) €1.01+ [1 subagent calls unpriced] [1 subagent calls estimated]\n"
+        "myproject Opus 5.5 high €2/€10/M 142k/1M ctx (14%) €0.75\n"
     );
     assert!(!out.contains('\r'));
+}
+
+#[test]
+fn cost_is_claude_codes_total_with_subagents_present() {
+    let dir = fixtures().join("subagent-cost");
+    assert!(dir.join("sub-cost-1/subagents/agent-a.jsonl").is_file());
+    let mut v: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(dir.join("stdin.json")).unwrap()).unwrap();
+    v["transcript_path"] = dir.join("sub-cost-1.jsonl").to_string_lossy().into();
+    let sb = Sandbox::new("segments = [\"cost\"]\n");
+    let out = sb.run(&v.to_string(), &[]);
+    assert_eq!(out, "$0.01 [unpriced model claude-haiku-5-5]\n");
 }
 
 #[test]
