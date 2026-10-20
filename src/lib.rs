@@ -34,7 +34,7 @@ pub struct Env {
     pub now: f64,
     pub no_color: bool,
     pub width: usize,
-    /// Effort from `CLAUDE_EFFORT_LEVEL` or `~/.claude/settings.json`.
+    /// Effort from `CLAUDE_CODE_EFFORT_LEVEL` (or legacy `CLAUDE_EFFORT_LEVEL`) or `~/.claude/settings.json`.
     pub effort_fallback: Option<String>,
 }
 
@@ -62,9 +62,10 @@ impl Env {
 }
 
 fn effort_fallback() -> Option<String> {
-    if let Some(e) = std::env::var("CLAUDE_EFFORT_LEVEL")
-        .ok()
-        .filter(|e| !e.trim().is_empty())
+    if let Some(e) = ["CLAUDE_CODE_EFFORT_LEVEL", "CLAUDE_EFFORT_LEVEL"]
+        .iter()
+        .filter_map(|k| std::env::var(k).ok())
+        .find(|e| !e.trim().is_empty() && e.trim() != "auto")
     {
         return Some(e.trim().to_string());
     }

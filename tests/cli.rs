@@ -50,6 +50,7 @@ impl Sandbox {
             .env("NO_COLOR", "1")
             .env("COLUMNS", "200")
             .env_remove("CLAUDE_EFFORT_LEVEL")
+            .env_remove("CLAUDE_CODE_EFFORT_LEVEL")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped());
         for (k, v) in extra_env {
@@ -152,7 +153,7 @@ fn effort_falls_back_to_env() {
     let mut v: serde_json::Value = serde_json::from_str(&stdin("claude-opus-5-5", 1.0)).unwrap();
     v.as_object_mut().unwrap().remove("effort");
     assert_eq!(
-        sb.run(&v.to_string(), &[("CLAUDE_EFFORT_LEVEL", "low")]),
+        sb.run(&v.to_string(), &[("CLAUDE_CODE_EFFORT_LEVEL", "low")]),
         "low\n"
     );
 }
