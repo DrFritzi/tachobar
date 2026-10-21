@@ -6,6 +6,21 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [0.1.5]
+
+### Fixed
+
+- Effort fallback reads `CLAUDE_CODE_EFFORT_LEVEL`, the variable Claude Code
+  documents; the old `CLAUDE_EFFORT_LEVEL` still works. `auto` is ignored.
+- Fast mode prices parse again after Anthropic's pricing page started writing
+  `$8 USD / MTok`.
+
+### Security
+
+- `rustls` 0.23.46 (advisory on hybrid key-share resumption).
+- `rustls-webpki` 0.103.16 and `webpki-roots` 1.0.10 (RUSTSEC-2026-0381,
+  RUSTSEC-2026-0382: distrusted emSign intermediates).
+
 ## [0.1.4]
 
 ### Changed
