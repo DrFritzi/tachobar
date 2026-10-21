@@ -482,15 +482,10 @@ pub struct PageModifiers {
 
 /// `$8 / MTok` -> USD per token.
 fn parse_mtok(cell: &str) -> Option<f64> {
-    let n: f64 = cell
-        .trim()
-        .strip_prefix('$')?
-        .split('/')
-        .next()?
-        .trim()
-        .replace(',', "")
-        .parse()
-        .ok()?;
+    let n = cell.trim().strip_prefix('$')?.split('/').next()?.trim();
+    // The page writes either `$8 / MTok` or `$8 USD / MTok`; any other unit fails.
+    let n = n.strip_suffix("USD").unwrap_or(n).trim().replace(',', "");
+    let n: f64 = n.parse().ok()?;
     (n > 0.0 && n < 10_000.0).then_some(n / 1e6)
 }
 
@@ -609,6 +604,17 @@ mod tests {
         assert_eq!(m.fast_mode["claude-opus-5-5"].input_cost_per_token, 8e-6);
         assert_eq!(m.fast_mode["claude-opus-4-8"].output_cost_per_token, 50e-6);
         assert!(!m.fast_mode.contains_key("claude-opus-5-5-batch"));
+    }
+
+    #[test]
+    fn parses_prices_with_usd_unit() {
+        // $8 USD / MTok = 8 / 1,000,000 = 8e-6 per token; $50 USD / MTok = 50e-6.
+        let page = PAGE.replace(" / MTok", " USD / MTok");
+        let m = parse_anthropic_pricing(&page).unwrap();
+        assert_eq!(m.fast_mode["claude-opus-5-5"].input_cost_per_token, 8e-6);
+        assert_eq!(m.fast_mode["claude-opus-4-8"].output_cost_per_token, 50e-6);
+        let eur = PAGE.replace("$8 / MTok", "$8 EUR / MTok");
+        assert!(parse_anthropic_pricing(&eur).is_err());
     }
 
     #[test]
