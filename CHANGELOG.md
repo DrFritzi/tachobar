@@ -18,6 +18,8 @@ All notable changes to this project are documented here. The format follows
 ### Security
 
 - `rustls` 0.23.46 (advisory on hybrid key-share resumption).
+- `rustls-webpki` 0.103.16 and `webpki-roots` 1.0.10 (RUSTSEC-2026-0381,
+  RUSTSEC-2026-0382: distrusted emSign intermediates).
 
 ## [0.1.4]
 
